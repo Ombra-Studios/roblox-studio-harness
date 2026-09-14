@@ -234,3 +234,22 @@ un_specs.py` | SessionStore 60 · ProjectScanner 14 · Theme 28 · Loader 13 |
 Publicare reală: commit-ul inițial și pachetele 1.0.0 sunt pe `https://github.com/Ombra-Studios/roblox-studio-harness` (ramura `main`), iar manifestul upstream răspunde la `https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/manifest.json` cu versiunea `1.0.0` și loader `1.1.0`.
 
 Instalare locală pe PC-ul de dezvoltare: pluginul a fost reconstruit și instalat în `%LOCALAPPDATA%\Roblox\Plugins` cu token-ul local injectat (`LocalTokenInjected: true`, hash verificat, copie de siguranță păstrată), iar daemon-ul a fost repornit pe portul 34871 și raportează versiunea `1.0.0` cu funcțiile `identity`, `workspaces` și `panel` active. Hub-ul public răspunde deocamdată `HTTP 405`, pentru că `lostcube.pro/roblox/harness` încă nu rulează hub-ul; daemon-ul stă corect în starea `offline` și reîncearcă.
+
+## 10. Proba în Studio real (14 septembrie 2026)
+
+La prima pornire a Studio-ului cu pluginul 1.0 instalat, pluginul **nu se conecta** și nu scria nicio eroare. Cauza: ambele instalatoare (`scripts/install-studio-plugin.ps1` și `updater.inject_local_token`) înlocuiau placeholder-ul în **tot** fișierul, deci și în constantele `TOKEN_PLACEHOLDER` din sursa loader-ului și a lui `BridgeController`. Codul livrat devenea astfel egal cu „placeholderul”, iar `validToken` îl respingea: pluginul își respingea propriul cod și rămânea deconectat, tăcut.
+
+Corecția: substituția atinge doar valoarea `StringValue`-ului `LocalToken` (o expresie care cere numele `LocalToken` imediat înaintea valorii), în ambele instalatoare; două sloturi într-un pachet sunt refuzate. Testele care verificau o înlocuire globală au fost rescrise pe invariantul corect — tokenul apare exact o dată, iar literalul rămâne în surse — și fixture-urile au acum forma pachetului real, cu sursă și slot.
+
+| Verificare | Rezultat |
+| --- | --- |
+| Fișierul instalat | tokenul o singură dată, în valoarea `LocalToken`; ambele constante intacte |
+| Suita Python | `Ran 558 tests` · `OK (skipped=1)` |
+| Studio repornit (17:29) cu pluginul reinstalat (17:27) | `plugin_connected: true`, fără niciun cod tastat |
+| Identitate citită din Studio | `ArchangelS0L` (userId 4324991580), avatar `rbxthumb://…` |
+| Workspace detectat | `game:10766226591` · place 129160346456700 · creator Group 554257950 |
+| Consola Studio | nicio eroare, niciun avertisment de la plugin |
+| Provideri văzuți de daemon | Claude Code și Codex, ambii disponibili |
+
+Smoke live al sistemului complet, pe porturi libere și stare temporară (hub + doi daemoni, fără Studio): 20 de verificări, toate trecute — înrolare în așteptare, aprobare cu codul de administrator, trecerea daemonilor în `approved`, identitate Roblox și detectarea a două jocuri diferite, sesiune din terminal ajunsă în workspace-ul corect, claim refuzat în același joc și acordat în altul, datele panoului, revocare propagată până în daemon. Generator: `%TEMP%\studio-harness-1.0\smoke-final\smoke.py`.
+
