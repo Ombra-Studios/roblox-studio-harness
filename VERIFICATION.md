@@ -19,7 +19,7 @@ Reguli valabile pentru orice rulare: testele nu pornesc CLI-uri, browser sau inf
 
 ## 2. Teste Python
 
-22 de fișiere de test, **539 de metode `test_*`** (numărate la rulare; `tests/fake_mcp.py` este un ajutor, nu un modul de test).
+22 de fișiere de test, **558 de metode `test_*`** (numărate la rulare; `tests/fake_mcp.py` este un ajutor, nu un modul de test).
 
 | Modul | Teste | Ce acoperă | Rezultat |
 | --- | ---: | --- | --- |
@@ -73,10 +73,10 @@ luau-compile --binary -O2 studio-plugin/StudioHarness.server.luau studio-plugin/
 | --- | ---: | --- | --- |
 | `SessionStore.spec.luau` | 60 | starea pură a aplicației: identitate, workspace, hub și prezenți, `mine` pe sesiuni și pe claims, ferestre studio/terminal/remote, aprobări (`inspectable`), `window.started`, jurnal, vizualizarea altui workspace, păstrarea identității locale la un status fără identitate, compatibilitatea cu handoff-ul 0.8 | **60/60** |
 | `ProjectScanner.spec.luau` | 14 | inventarul: rădăcini, flags, plafon și `truncated`, chunk-uri cu `game_id`/`creator_id`/`creator_type`, helperii puri `place`/`identityPayload`/`chunkPayload` | **14/14** |
-| `Theme.spec.luau` | 26 | paleta, contrastele WCAG pe ambele moduri, `resolveMode`, `elapsed`, `clock`, `initials`, `shortId`, `avatarUrl`, `fit`, `countLabel`, `sessionState`, `messageRole`, `placeLine`, `hubLine` | **26/26** |
-| `Loader.spec.luau` | 12 | deciziile pure ale loader-ului 1.1.0: `shouldSwap`, `validateBundle`, `sameSources`, `buildFolder`, tokenul livrat prin `LocalToken` | **12/12** |
+| `Theme.spec.luau` | 28 | paleta, contrastele WCAG pe ambele moduri, `resolveMode`, `elapsed`, `clock`, `initials`, `shortId`, `avatarUrl`, `fit`, `countLabel`, `sessionState`, `messageRole`, `placeLine`, `hubLine` | **28/28** |
+| `Loader.spec.luau` | 13 | deciziile pure ale loader-ului 1.1.0: `shouldSwap`, `validateBundle`, `sameSources`, `buildFolder`, tokenul livrat prin `LocalToken` | **13/13** |
 
-Spec-ul se rulează înfășurând modulul și spec-ul într-un singur fișier temporar (fără `require` de fișiere): `local Module = (function() … end)()`, apoi `spec(Module)` întoarce numărul de teste trecute, tipărit cu `luau.exe`. Pentru loader, același tipar funcționează pentru că scriptul întoarce tabelul `Loader` când globalul `plugin` lipsește (în afara Studio). Generatoare: `%TEMP%\studio-harness-1.0\phase8a\run_specs.py` (faza 8 A) și `%TEMP%\studio-harness-1.0\phase9\run_specs.py` (faza 9, rulare de confirmare pe codul final: `SessionStore 60`, `ProjectScanner 14`, `Theme 26`, `Loader 12`, cod de ieșire 0).
+Spec-ul se rulează înfășurând modulul și spec-ul într-un singur fișier temporar (fără `require` de fișiere): `local Module = (function() … end)()`, apoi `spec(Module)` întoarce numărul de teste trecute, tipărit cu `luau.exe`. Pentru loader, același tipar funcționează pentru că scriptul întoarce tabelul `Loader` când globalul `plugin` lipsește (în afara Studio). Generatoare: `%TEMP%\studio-harness-1.0\phase8a\run_specs.py` (faza 8 A) și `%TEMP%\studio-harness-1.0\phase9\run_specs.py` (faza 9, rulare de confirmare pe codul final: `SessionStore 60`, `ProjectScanner 14`, `Theme 28`, `Loader 13`, cod de ieșire 0).
 
 View-urile nu au spec-uri în repo, dar au harness-uri de runtime (Roblox fals + `Theme.luau` + `SessionStore.luau` + view-ul, într-un singur fișier rulat în `luau.exe`), scrise în fazele 6 A și 6 B și rerulate în faza 9 pe codul final: **HubView 143/143** (generator `%TEMP%\studio-harness-1.0\phase6a\build_spec.py`; 137 la scrierea lor în faza 6 A, verificările au crescut de atunci), **SessionView + ApprovalView 46/46** și **serializatorul de argumente al aprobărilor 17/17** (generator `%TEMP%\studio-harness-1.0\6B\build_smoke.py`). `ApprovalView` 1.0 nu mai folosește `HttpService` (brief §9): are propriul serializator JSON indentat, cu chei sortate.
 
@@ -216,3 +216,21 @@ Din smoke-ul fazei 8 A au rămas în afara verificării:
 - https://code.claude.com/docs/en/plugins
 - https://learn.chatgpt.com/docs/app-server
 - https://learn.chatgpt.com/docs/config-file/config-reference
+
+## 9. Verificare finală după runda de corecții (14 septembrie 2026)
+
+Cele 34 de constatări ale fazei 8 (13 din smoke, 16 din revizia de securitate, 5 din revizia UX) au fost aplicate într-o rundă separată, pentru că agentul care trebuia să le aplice fusese sărit. Agenții de corecție au găsit majoritatea deja rezolvate la cauză, au completat testele care lipseau și au respins cinci propuneri, cu motive scrise în rapoarte. Rezultatele de mai jos sunt măsurate pe codul final publicat, nu preluate din rapoarte.
+
+| Verificare | Comandă | Rezultat |
+| --- | --- | --- |
+| Suita Python | `python -m unittest discover -s tests -p "test_*.py"` | `Ran 558 tests` · `OK (skipped=1)` · 33,5 s |
+| Compilare Luau | `luau-compile --binary -O2` pe cele 13 fișiere | cod de ieșire 0, fără avertismente |
+| Spec-uri Luau | generator din `%TEMP%\studio-harness-1.0\phase9-luau
+un_specs.py` | SessionStore 60 · ProjectScanner 14 · Theme 28 · Loader 13 |
+| Construirea pluginului | `python scripts/build_studio_plugin.py` | loader 1.1.0, 8 module, `LocalToken: placeholder` |
+| Publicare (probă) | `python scripts/publish_release.py --dry-run` | `Scanare secrete: nimic găsit.`, trei pachete, versiune 1.0.0 |
+| Repo curat de secrete | căutarea token-ului local și a celui de dispozitiv în tot arborele | zero potriviri; `.rbxmx` din pachet conține doar placeholder-ul |
+
+Publicare reală: commit-ul inițial și pachetele 1.0.0 sunt pe `https://github.com/Ombra-Studios/roblox-studio-harness` (ramura `main`), iar manifestul upstream răspunde la `https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/manifest.json` cu versiunea `1.0.0` și loader `1.1.0`.
+
+Instalare locală pe PC-ul de dezvoltare: pluginul a fost reconstruit și instalat în `%LOCALAPPDATA%\Roblox\Plugins` cu token-ul local injectat (`LocalTokenInjected: true`, hash verificat, copie de siguranță păstrată), iar daemon-ul a fost repornit pe portul 34871 și raportează versiunea `1.0.0` cu funcțiile `identity`, `workspaces` și `panel` active. Hub-ul public răspunde deocamdată `HTTP 405`, pentru că `lostcube.pro/roblox/harness` încă nu rulează hub-ul; daemon-ul stă corect în starea `offline` și reîncearcă.
