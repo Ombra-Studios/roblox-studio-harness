@@ -1,22 +1,22 @@
 {
  "version": "1.0.0",
- "published": "2026-09-14T17:49:06",
+ "published": "2026-09-14T18:24:17",
  "notes": "Studio Harness 1.0.0",
  "loader_version": "1.1.0",
  "files": {
   "plugin": {
    "url": "https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/roblox-studio-harness-1.0.0.zip",
-   "sha256": "03371a067ce9b8fce8e0d5cc948d1a217e0983b7613856c42db5b9ac2dacafe4",
-   "size": 402594
+   "sha256": "d786bc160d6f0360cee2deb34411307f751bd590cf40a2d126f55e51b4ae1141",
+   "size": 418320
   },
   "hub": {
    "url": "https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/studio-harness-hub-1.0.0-ubuntu.zip",
-   "sha256": "5053aca80e0c8277a8ee06051f93d53d45d586d657c070be6b9cad8331f12cc5",
+   "sha256": "f80ed11f50d98f35d6edac64b367c1761cb1e4593fe28aa7a0ed2689a12a1981",
    "size": 97982
   },
   "studio_app": {
    "url": "https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/studio-harness-app-1.0.0.zip",
-   "sha256": "01c0ef9d21aac4a55016573c810309cd15ef64817be305b0dd92f8aa5e478526",
+   "sha256": "8bd1698abdfaecd0c513c7cf2e20d702be3ac6970a7d42bd4932e7b1fc2839b2",
    "size": 69899
   }
  },

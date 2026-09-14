@@ -1,5 +1,7 @@
 ﻿# Adaugă serverul MCP studio_hub și notify-ul Studio Harness în configurația Codex a utilizatorului.
 $ErrorActionPreference = "Stop"
+# Mesajele au diacritice: fără asta consola Windows (cp1252/OEM) le strică, mai ales când scriptul este chemat de instalator.
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $shim = (Join-Path $root "scripts\harness_mcp.py") -replace "\\", "\\"
 $hook = (Join-Path $root "scripts\harness_hook.py") -replace "\\", "\\"

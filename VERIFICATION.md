@@ -253,3 +253,18 @@ Corecția: substituția atinge doar valoarea `StringValue`-ului `LocalToken` (o 
 
 Smoke live al sistemului complet, pe porturi libere și stare temporară (hub + doi daemoni, fără Studio): 20 de verificări, toate trecute — înrolare în așteptare, aprobare cu codul de administrator, trecerea daemonilor în `approved`, identitate Roblox și detectarea a două jocuri diferite, sesiune din terminal ajunsă în workspace-ul corect, claim refuzat în același joc și acordat în altul, datele panoului, revocare propagată până în daemon. Generator: `%TEMP%\studio-harness-1.0\smoke-final\smoke.py`.
 
+## 11. Instalatorul `.exe` (14 septembrie 2026)
+
+`installer/StudioHarnessSetup.cs` se compilează cu `csc.exe` din .NET Framework 4 (`scripts/build-installer.ps1`) într-un executabil de 19 456 de octeți, fără dependențe și fără runtime de instalat. Face cele trei instalări dintr-o singură rulare: pluginul Roblox Studio, pluginul Claude Code (magazin local plus instalare la scop de utilizator) și configurația Codex.
+
+| Verificare | Rezultat |
+| --- | --- |
+| `--help` | listează toate opțiunile, cod de ieșire 0 |
+| `--dry-run` pe repo | parcurge cei trei pași, nu scrie nimic |
+| Rulare reală lângă repo | toate trei instalate, cod de ieșire 0, plugin cu tokenul injectat |
+| Rulare dintr-un folder izolat, doar cu executabilul | descarcă pachetul din canalul public, verifică suma (`03371a06…`, 393 KB), despachetează în `%LOCALAPPDATA%\StudioHarness\pachet` |
+| Opțiune necunoscută | mesaj în română, cod de ieșire 2 |
+| Teste automate | `tests/test_installer.py`, 10 teste: compilează sursa, rulează executabilul pe un pachet fals și verifică garanțiile (HTTPS impus, TLS 1.2, sumă verificată, plafon de mărime, refuzul căilor din afara folderului, zero tokenuri în sursă) |
+
+Tot în această rundă a fost reparat un test fragil: `test_deploy.test_installer_is_valid_bash` alegea `C:\Windows\System32ash.exe` (lansatorul WSL) când suita pornea din PowerShell, iar acela iese cu 1 și fără mesaj când nu există nicio distribuție instalată. Testul caută acum primul `bash` care chiar rulează și se sare singur dacă nu există niciunul. Suita completă trece acum identic din Git Bash și din PowerShell: **571 de teste**.
+

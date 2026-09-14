@@ -24,9 +24,23 @@ Nu configurezi nimic: instalezi pluginul, deschizi Studio și apari în hub. Sin
 
 Referințe: `STUDIO_HUB_CONTRACT.md` (rute, câmpuri, coduri), `design/DESIGN.md` (sistemul de design), `design/V1-BRIEF.md` (deciziile 1.0), `VERIFICATION.md` (ce a fost verificat).
 
-## Instalare în 3 pași
+## Instalare
 
 **Cerințe:** Windows cu Roblox Studio și MCP-ul activat (**Assistant → … → Manage MCP Servers → Enable Studio as MCP server**), Python 3.10 sau mai nou în `PATH`, Claude Code **2.1.259+** și/sau Codex **0.154+** instalate oficial și autentificate în terminal.
+
+### Cel mai simplu: un singur fișier
+
+**`dist\StudioHarnessSetup.exe`** face singur toate cele trei instalări de mai jos: pluginul Roblox Studio, pluginul Claude Code și configurația Codex. Este un executabil de 19 KB, fără nimic de instalat în prealabil, și îl poți trimite colegilor așa cum este: dacă nu găsește pachetul lângă el, îl descarcă singur din canalul public, îi verifică suma de control și îl despachetează. Pașii pe care nu îi poate face (Roblox Studio neinstalat, `claude` lipsă din `PATH`) sunt sărite, cu motivul scris.
+
+```powershell
+StudioHarnessSetup.exe            # instalează tot, apoi așteaptă Enter
+StudioHarnessSetup.exe --dry-run  # arată pașii fără să schimbe nimic
+StudioHarnessSetup.exe --help     # toate opțiunile (--skip-studio, --dir=, --manifest=)
+```
+
+Se reconstruiește cu `powershell -File scripts\build-installer.ps1` (folosește `csc.exe` din .NET Framework, prezent pe orice Windows). Sursa lui este `installer\StudioHarnessSetup.cs`.
+
+### Sau pas cu pas
 
 ### 1. Pluginul Studio
 

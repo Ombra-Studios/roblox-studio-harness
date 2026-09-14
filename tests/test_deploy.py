@@ -200,6 +200,28 @@ class HealthzTests(unittest.TestCase):
             self.assertNotIn(secret, text)
 
 
+def working_bash():
+    """Primul `bash` care chiar poate rula ceva.
+
+    Pe Windows, `C:\\Windows\\System32\\bash.exe` este lansatorul WSL: fără nicio distribuție instalată iese cu 1 și
+    fără niciun mesaj, iar `shutil.which` îl alege primul când System32 apare mai devreme în PATH (de exemplu când
+    suita este pornită din PowerShell). Testul ar cădea atunci din cauza mediului, nu a scriptului verificat."""
+    candidates = []
+    found = shutil.which("bash")
+    if found:
+        candidates.append(found)
+    for extra in ("C:\\Program Files\\Git\\bin\\bash.exe", "C:\\Program Files\\Git\\usr\\bin\\bash.exe", "/bin/bash", "/usr/bin/bash"):
+        if os.path.isfile(extra) and extra not in candidates:
+            candidates.append(extra)
+    for candidate in candidates:
+        try:
+            if subprocess.run([candidate, "-c", "exit 0"], capture_output=True, timeout=30).returncode == 0:
+                return candidate
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return None
+
+
 class DeployFilesTests(unittest.TestCase):
     """install.sh, unitatea systemd, Caddy/nginx și Dockerfile-urile descriu exact hub-ul 1.0 livrat."""
 
@@ -332,9 +354,9 @@ class DeployFilesTests(unittest.TestCase):
         self.assertTrue(installer.startswith("#!/usr/bin/env bash\n"))
         self.assertIn("set -euo pipefail", installer)
         self.assertNotIn("\r", installer)
-        bash = shutil.which("bash")
+        bash = working_bash()
         if not bash:
-            self.skipTest("bash indisponibil")
+            self.skipTest("niciun bash care să poată rula")
         result = subprocess.run([bash, "-n", str(DEPLOY / "install.sh")], capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
 

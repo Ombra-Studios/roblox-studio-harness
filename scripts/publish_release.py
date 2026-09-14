@@ -45,7 +45,7 @@ HUB_FILES = {
     "panel/index.html": "panel/index.html",
 }
 # 1.0: fără `Setup-Team.cmd`/`Start-Team-Hub.cmd` (nu există echipe); `Start-Hub.cmd` pornește un hub local, `Publish.cmd` publică.
-PLUGIN_INCLUDE = ("scripts", "hooks", "skills", "studio-plugin", "dist", "codex", "deploy", "panel", ".claude-plugin", ".mcp.json",
+PLUGIN_INCLUDE = ("scripts", "hooks", "skills", "studio-plugin", "dist", "codex", "deploy", "panel", "installer", ".claude-plugin", ".mcp.json",
                   "update-channel.json", "README.md", "STUDIO_HUB_CONTRACT.md", "STUDIO_BRIDGE_CONTRACT.md", "VERIFICATION.md",
                   "Install-Studio-Plugin.cmd", "Install-Codex-Config.cmd", "Start-Daemon.cmd", "Start-Hub.cmd", "Publish.cmd", "Dockerfile")
 EXCLUDE_DIRS = {"__pycache__", ".runtime", "release", ".git", ".venv", "node_modules", "tests", "design", ".harness-output"}
@@ -74,7 +74,7 @@ SECRET_PATTERNS = [
 ]
 SECRET_NAMES = {".env", "team.json", "local-token", "device-token", "hub-admin-token", "team-token", "daemon.log"}
 TEXT_SUFFIXES = {".py", ".md", ".json", ".toml", ".txt", ".cmd", ".ps1", ".sh", ".luau", ".conf", ".service", ".yml", ".yaml", ".html", ".css", ".js",
-                 ".rbxmx", ""}
+                 ".rbxmx", ".cs", ""}
 # Doar pentru scanare: chei și certificate nu se împachetează niciodată, dar `git add -A` le-ar publica, deci trebuie citite.
 SCAN_SUFFIXES = TEXT_SUFFIXES | {".pem", ".key", ".crt", ".cer", ".env"}
 
