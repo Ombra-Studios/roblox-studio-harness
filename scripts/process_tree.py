@@ -128,3 +128,67 @@ def host_process_id(names: tuple[str, ...] = ("claude.exe", "codex.exe", "node.e
             return None
         pid = parent
     return None
+
+
+def alive_pids(pids):
+    """Subsetul de PID-uri care mai există acum.
+
+    Pe Windows citește un singur snapshot pentru toate (mai ieftin decât o interogare per proces); în rest folosește
+    `os.kill(pid, 0)`. Un PID reciclat de alt proces este raportat viu: greșeala sigură este să lăsăm sesiunea în listă,
+    nu să o închidem pe a altcuiva."""
+    wanted = {pid for pid in pids if isinstance(pid, int) and pid > 0}
+    if not wanted:
+        return set()
+    if os.name == "nt":
+        snapshot = _running_pids()
+        return wanted if snapshot is None else wanted & snapshot
+    alive = set()
+    for pid in wanted:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            alive.add(pid)
+        except OSError:
+            alive.add(pid)
+        else:
+            alive.add(pid)
+    return alive
+
+
+def _running_pids():
+    """PID-urile din snapshotul Toolhelp (Windows); None dacă snapshotul nu poate fi luat."""
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    class Entry(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ProcessID", wintypes.DWORD),
+            ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long), ("dwFlags", wintypes.DWORD),
+            ("szExeFile", ctypes.c_wchar * 260),
+        ]
+
+    kernel.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    kernel.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+    kernel.Process32FirstW.argtypes = [ctypes.c_void_p, ctypes.POINTER(Entry)]
+    kernel.Process32FirstW.restype = wintypes.BOOL
+    kernel.Process32NextW.argtypes = [ctypes.c_void_p, ctypes.POINTER(Entry)]
+    kernel.Process32NextW.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    snapshot = kernel.CreateToolhelp32Snapshot(0x00000002, 0)
+    if snapshot in (None, 0) or snapshot == ctypes.c_void_p(-1).value:
+        return None
+    try:
+        entry = Entry()
+        entry.dwSize = ctypes.sizeof(Entry)
+        if not kernel.Process32FirstW(snapshot, ctypes.byref(entry)):
+            return None
+        found = set()
+        while True:
+            found.add(int(entry.th32ProcessID))
+            if not kernel.Process32NextW(snapshot, ctypes.byref(entry)):
+                return found
+    finally:
+        kernel.CloseHandle(snapshot)

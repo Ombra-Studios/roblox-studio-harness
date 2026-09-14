@@ -1,0 +1,16 @@
+{
+  "name": "studio-harness",
+  "description": "Studio Harness: Roblox Studio condus din terminalul tău Claude Code sau Codex, cu sesiunile vizibile live în Studio.",
+  "owner": {
+    "name": "Ombra Studios"
+  },
+  "plugins": [
+    {
+      "name": "roblox-studio-harness",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Sesiunile tale din terminal apar live în pluginul Studio: tabla echipei, claims exclusive pe subarborii scenei și harta proiectului pe grupe funcționale.",
+      "category": "development"
+    }
+  ]
+}

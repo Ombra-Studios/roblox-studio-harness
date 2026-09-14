@@ -36,11 +36,16 @@ Salvează lucrul din Studio și repornește-l o dată (loader nou). În fila **P
 
 ### 2. Pluginul Claude Code (și/sau Codex)
 
+Instalează-l o singură dată, ca plugin al utilizatorului; se aplică apoi oricărui folder în care deschizi Claude Code:
+
 ```powershell
-claude --plugin-dir "C:\cale\catre\roblox-studio-harness"
+claude plugin marketplace add "C:\cale\catre\roblox-studio-harness"
+claude plugin install roblox-studio-harness@studio-harness
 ```
 
-Pluginul aduce serverul MCP `studio_hub` (`.mcp.json`), hook-urile care trimit promptul și textul asistentului în hub (`hooks/hooks.json`) și skill-ul `studio`. La prima sesiune, serverul MCP pornește daemon-ul în fundal; jurnalul lui este în `%LOCALAPPDATA%\StudioHarness\daemon.log`.
+Pluginul aduce serverul MCP `studio_hub` (`.mcp.json`), hook-urile care trimit promptul și textul asistentului în hub (`hooks/hooks.json`) și skill-ul `studio`. La prima sesiune, serverul MCP pornește daemon-ul în fundal; jurnalul lui este în `%LOCALAPPDATA%\StudioHarness\daemon.log`. Fiecare sesiune nouă de terminal apare live în pluginul din Studio, cu numele providerului și al folderului, iar când o închizi trece în „Finalizat”; dacă terminalul este ucis brutal, daemon-ul o închide singur după o jumătate de minut și îi eliberează claims-urile.
+
+Pentru o probă rapidă (`claude --plugin-dir "C:\cale\catre\roblox-studio-harness"`) pluginul se încarcă doar pentru sesiunea aceea. Înăuntrul repo-ului, `.claude/settings.json` dezactivează intenționat copia de proiect a serverului `studio_hub`: acolo el vine din pluginul instalat, iar două servere cu același nume ar înregistra sesiunea de două ori.
 
 Pentru Codex, deschide **`Install-Codex-Config.cmd`**: adaugă `mcp_servers.studio_hub` și `notify` în `%USERPROFILE%\.codex\config.toml`, cu backup, apoi repornește Codex.
 

@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlsplit
 
+import process_tree
 import project_map
 import updater
 from claims import Claim, ClaimTable, display, luau_literals, normalize, related, within
@@ -66,6 +67,10 @@ MAX_PROJECT_NODES = project_map.MAX_NODES
 MAX_PROJECT_CHUNKS = 64
 PROJECT_SAMPLE = 50
 TERMINAL_STATES = {"completed", "failed", "cancelled"}
+# Cât de rar verificăm dacă terminalele care țin sesiuni deschise mai există (un snapshot de procese, nu unul per sesiune)
+# și cât timp o lăsăm liniștită înainte de a o considera abandonată: un CLI viu emite evenimente, unul ucis nu mai emite nimic.
+REAP_INTERVAL = 5.0
+REAP_GRACE = 30.0
 RUNNING_STATES = {"running", "waiting_approval"}
 BLOCKED_NATIVE_TOOLS = frozenset({"subagent", "skill"})
 PLAY_TOOLS = frozenset({"start_stop_play", "user_keyboard_input", "user_mouse_input", "character_navigation"})
@@ -565,6 +570,9 @@ class Bridge:
         self.hub_cache: dict[str, tuple[float, dict[str, Any]]] = {}
         # Router-ul există înaintea clientului: firul hub-ului poate cere sesiunile (și claims-urile lor) imediat după înregistrare.
         self.claims = ClaimRouter(self)
+        # Verificarea proceselor este injectabilă: testele nu se uită la procesele reale ale mașinii.
+        self.alive_pids = process_tree.alive_pids
+        self.last_reap = 0.0
         factory = hub_client_factory or HubClient
         self.hub = factory(self, url, self._device_token, self.machine, disabled_error=disabled_error)
         self.dispatcher = threading.Thread(target=self._dispatch, name="studio-harness-dispatcher", daemon=True)
@@ -1010,7 +1018,33 @@ class Bridge:
                 return sessions, [], list(self.journal)[-journal_limit:]
         return sessions + self.hub.remote_rows(), self.hub.member_rows(), self.hub.journal_rows(journal_limit, workspace=workspace)
 
+    def reap_terminals(self, force: bool = False) -> list[str]:
+        """Închide sesiunile din terminal al căror CLI a dispărut fără să anunțe daemon-ul (închidere brutală, pană de curent).
+
+        Fără asta, o sesiune ucisă rămâne „în lucru” în pluginul din Studio și îi ține claims-urile blocate pentru colegi."""
+        now = time.time()
+        with self.lock:
+            if not force and now - self.last_reap < REAP_INTERVAL:
+                return []
+            self.last_reap = now
+            watched = {job.id: job.host_pid for job in self.jobs.values()
+                       if job.kind == "terminal" and job.state in RUNNING_STATES and job.host_pid
+                       and now - job.last_activity >= REAP_GRACE}
+        if not watched:
+            return []
+        try:
+            alive = self.alive_pids(set(watched.values()))
+        except Exception:
+            return []
+        gone = [job_id for job_id, pid in watched.items() if pid not in alive]
+        for job_id in gone:
+            job = self.jobs.get(job_id)
+            if job and job.state in RUNNING_STATES:
+                self._finish(job, "cancelled", "Terminalul s-a închis fără să anunțe daemon-ul; sesiunea a fost eliberată.")
+        return gone
+
     def board(self) -> dict[str, Any]:
+        self.reap_terminals()
         studios, _ = self.studios(timeout=0.5)
         hub = self.hub_status()
         with self.lock:

@@ -57,6 +57,58 @@ class TerminalBase(unittest.TestCase):
         return [event for event in job.events if event["type"] == kind]
 
 
+class ReapTests(TerminalBase):
+    """1.0: o sesiune din terminal al cărei CLI a murit brutal (kill, pană) nu rămâne „în lucru” în pluginul din Studio."""
+
+    def test_a_dead_terminal_is_closed_and_its_claims_are_freed(self):
+        alive = self.terminal(host_pid=4242)
+        dead = self.terminal(host_pid=5353, cli_session_id="al-doilea")
+        self.claim(dead, "Workspace.Map")
+        # Sesiunile proaspete sunt lăsate în pace; abia după perioada de grație intră în verificare.
+        self.bridge.alive_pids = lambda pids: set()
+        self.assertEqual(self.bridge.reap_terminals(force=True), [])
+        for job in (alive, dead):
+            job.last_activity -= studio_bridge.REAP_GRACE + 1
+        self.assertEqual([claim["path"] for claim in self.bridge.claims.snapshot()], ["Workspace.Map"])
+        # Numai 4242 mai există: sesiunea lui 5353 se închide, claims-urile ei se eliberează, cealaltă rămâne neatinsă.
+        self.bridge.alive_pids = lambda pids: {pid for pid in pids if pid == 4242}
+        self.assertEqual(self.bridge.reap_terminals(force=True), [dead.id])
+        self.assertEqual(dead.state, "cancelled")
+        self.assertIn("Terminalul s-a închis", dead.events[-1]["text"])
+        self.assertEqual(alive.state, "running")
+        self.assertEqual(self.bridge.claims.snapshot(), [])
+        # A doua trecere nu mai are ce închide, iar `board()` nu ridică nimic.
+        self.assertEqual(self.bridge.reap_terminals(force=True), [])
+        self.assertEqual(len(self.bridge.board()["sessions"]), 2)
+
+    def test_reaping_is_throttled_and_survives_a_failing_probe(self):
+        first = self.terminal(host_pid=4242)
+        first.last_activity -= studio_bridge.REAP_GRACE + 1
+        calls = []
+        self.bridge.alive_pids = lambda pids: calls.append(set(pids)) or set()
+        self.bridge.last_reap = 0.0
+        self.bridge.board()
+        self.assertEqual(len(calls), 1, "prima chemare verifică procesele")
+        self.bridge.board()
+        self.assertEqual(len(calls), 1, "a doua chemare, imediat după, este temperată")
+        # O eroare la citirea proceselor nu trebuie să rupă tabla.
+        second = self.terminal(host_pid=6464, cli_session_id="alta")
+        second.last_activity -= studio_bridge.REAP_GRACE + 1
+        def explode(_):
+            raise OSError("snapshot indisponibil")
+        self.bridge.alive_pids = explode
+        self.assertEqual(self.bridge.reap_terminals(force=True), [])
+        self.assertEqual(second.state, "running")
+
+    def test_sessions_without_a_host_pid_are_left_alone(self):
+        session = self.terminal()
+        session.last_activity -= studio_bridge.REAP_GRACE + 1
+        self.assertIsNone(session.host_pid)
+        self.bridge.alive_pids = lambda pids: set()
+        self.assertEqual(self.bridge.reap_terminals(force=True), [])
+        self.assertEqual(session.state, "running")
+
+
 class SessionTests(TerminalBase):
     def test_create_terminal_session_validations(self):
         invalid = [

@@ -1,0 +1,4 @@
+{
+  "$comment": "Înăuntrul acestui repo, serverul MCP studio_hub vine din pluginul Claude Code instalat (care rezolvă ${CLAUDE_PLUGIN_ROOT}). Copia de proiect din .mcp.json ar fi un al doilea server cu același nume: ar cere aprobare, nu ar porni și ar înregistra sesiunea de două ori. Fișierul .mcp.json rămâne pentru că el este configurația pluginului.",
+  "disabledMcpjsonServers": ["studio_hub"]
+}
