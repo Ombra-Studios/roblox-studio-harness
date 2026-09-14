@@ -1,0 +1,15 @@
+# /etc/caddy/Caddyfile — HTTPS automat (Let's Encrypt) în fața hub-ului. Înlocuiește domeniul.
+# Instalare: sudo apt install caddy ; sudo systemctl reload caddy
+# Hub-ul stă sub /roblox/harness/: handle_path scoate prefixul, iar /roblox/harness duce la panou.
+lostcube.pro {
+	encode gzip
+	redir /roblox/harness /roblox/harness/panel 302
+	handle_path /roblox/harness/* {
+		reverse_proxy 127.0.0.1:34880 {
+			# POST /hub/claims/wait poate ține conexiunea deschisă până la 60 s
+			transport http {
+				response_header_timeout 90s
+			}
+		}
+	}
+}

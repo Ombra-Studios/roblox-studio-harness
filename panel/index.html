@@ -1,0 +1,2031 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>Studio Harness — Panou</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23121821'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%234ADE80' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%234ADE80'/%3E%3C/svg%3E">
+<style>
+/* 1. Token-uri (design/DESIGN.md §9.1): light complet pe :root, dark redefinește doar ce se schimbă. */
+:root {
+  color-scheme: light;
+  --bg: #F6F8FA; --surface: #FFFFFF; --raised: #F0F3F7;
+  --border: #D6DCE5; --border-strong: #B8C2CF; --border-input: #7B8797;
+  --text: #0F172A; --text-2: #5B6675; --text-3: #7B8797; --focus: #1D4ED8;
+  --primary: #4ADE80; --primary-text: #166534; --primary-mark: #15803D; --primary-soft: #E6FAED;
+  --primary-hover: #3ED474; --primary-active: #34C96A; --on-primary: #06210F; --completed-mark: #3F8F5E;
+  --info: #60A5FA; --info-text: #1D4ED8; --info-mark: #2563EB; --info-soft: #E9F2FE;
+  --warning: #FBBF24; --warning-text: #92400E; --warning-mark: #B45309; --warning-soft: #FEF6E0;
+  --danger: #F87171; --danger-text: #B91C1C; --danger-mark: #DC2626; --danger-soft: #FEEBEB;
+  --claude: #D97757; --claude-text: #9A4322; --claude-mark: #C4643F; --claude-soft: #FAECE7;
+  --codex: #10A37F; --codex-text: #0B7A5F; --codex-mark: #0B7A5F; --codex-soft: #DEF2ED;
+  --neutral: #8B98A9; --neutral-text: #5B6675; --neutral-mark: #6B7A8F; --neutral-soft: #EFF1F3;
+  --overlay: rgba(15, 23, 42, .35);
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, .06); --shadow-2: 0 8px 24px rgba(15, 23, 42, .12);
+  --primary-border: var(--primary-mark);
+  --secondary-hover: var(--border);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --radius-control: 6px; --radius-card: 10px;
+  --duration: 140ms;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0B0F14; --surface: #121821; --raised: #1A2230;
+  --border: #26303F; --border-strong: #3A4657; --border-input: #66768C;
+  --text: #E6EDF3; --text-2: #8B98A9; --text-3: #6B7A8F; --focus: #60A5FA;
+  --primary-text: #4ADE80; --primary-mark: #4ADE80; --primary-soft: #1A342E;
+  --primary-hover: #5CE58F; --primary-active: #6FEB9C; --completed-mark: #35895A;
+  --info-text: #60A5FA; --info-mark: #60A5FA; --info-soft: #1D2C3F;
+  --warning-text: #FBBF24; --warning-mark: #FBBF24; --warning-soft: #332F21;
+  --danger-text: #F87171; --danger-mark: #F87171; --danger-soft: #32242C;
+  --claude-text: #D97757; --claude-mark: #D97757; --claude-soft: #2E2529;
+  --codex-text: #22B38C; --codex-mark: #10A37F; --codex-soft: #122B2E;
+  --neutral-text: #8B98A9; --neutral-mark: #6B7A8F; --neutral-soft: #232A34;
+  --overlay: rgba(11, 15, 20, .55);
+  --shadow-1: none; --shadow-2: none;
+  --primary-border: transparent;
+  --secondary-hover: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0B0F14; --surface: #121821; --raised: #1A2230;
+    --border: #26303F; --border-strong: #3A4657; --border-input: #66768C;
+    --text: #E6EDF3; --text-2: #8B98A9; --text-3: #6B7A8F; --focus: #60A5FA;
+    --primary-text: #4ADE80; --primary-mark: #4ADE80; --primary-soft: #1A342E;
+    --primary-hover: #5CE58F; --primary-active: #6FEB9C; --completed-mark: #35895A;
+    --info-text: #60A5FA; --info-mark: #60A5FA; --info-soft: #1D2C3F;
+    --warning-text: #FBBF24; --warning-mark: #FBBF24; --warning-soft: #332F21;
+    --danger-text: #F87171; --danger-mark: #F87171; --danger-soft: #32242C;
+    --claude-text: #D97757; --claude-mark: #D97757; --claude-soft: #2E2529;
+    --codex-text: #22B38C; --codex-mark: #10A37F; --codex-soft: #122B2E;
+    --neutral-text: #8B98A9; --neutral-mark: #6B7A8F; --neutral-soft: #232A34;
+    --overlay: rgba(11, 15, 20, .55);
+    --shadow-1: none; --shadow-2: none;
+    --primary-border: transparent;
+    --secondary-hover: var(--bg);
+  }
+}
+
+/* 2. Maparea rolurilor (§9.2): implicitul neutral vine primul, blocurile data-role după el. */
+[data-role="neutral"], .chip, .dot, .card, .banner, .bubble
+                        { --role-fill: var(--neutral);  --role-text: var(--neutral-text);  --role-mark: var(--neutral-mark);  --role-soft: var(--neutral-soft); }
+[data-role="primary"]   { --role-fill: var(--primary);  --role-text: var(--primary-text);  --role-mark: var(--primary-mark);  --role-soft: var(--primary-soft); }
+[data-role="info"]      { --role-fill: var(--info);     --role-text: var(--info-text);     --role-mark: var(--info-mark);     --role-soft: var(--info-soft); }
+[data-role="warning"]   { --role-fill: var(--warning);  --role-text: var(--warning-text);  --role-mark: var(--warning-mark);  --role-soft: var(--warning-soft); }
+[data-role="danger"]    { --role-fill: var(--danger);   --role-text: var(--danger-text);   --role-mark: var(--danger-mark);   --role-soft: var(--danger-soft); }
+[data-role="claude"]    { --role-fill: var(--claude);   --role-text: var(--claude-text);   --role-mark: var(--claude-mark);   --role-soft: var(--claude-soft); }
+[data-role="codex"]     { --role-fill: var(--codex);    --role-text: var(--codex-text);    --role-mark: var(--codex-mark);    --role-soft: var(--codex-soft); }
+[data-role="completed"] { --role-fill: var(--primary);  --role-text: var(--text-2);        --role-mark: var(--completed-mark); --role-soft: var(--neutral-soft); }
+
+/* 3. Bază (§9.3) */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.45 var(--sans); font-variant-numeric: tabular-nums; min-height: 100vh; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 20px; line-height: 26px; font-weight: 600; }
+h2 { font-size: 16px; line-height: 22px; font-weight: 600; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+a { color: var(--info-text); }
+img, svg { max-width: 100%; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-control); }
+.input:focus-visible, .select:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--text-2); }
+.small { font-size: 12px; line-height: 16px; }
+
+/* 4. Componente (§7), în ordinea catalogului */
+.card { position: relative; display: block; width: 100%; margin: 0; padding: 12px 12px 12px 15px; text-align: left; font: inherit; color: var(--text);
+        background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-1); overflow: hidden; }
+.card--static { padding-left: 12px; }
+.card--clickable { cursor: pointer; }
+.card--clickable:hover { border-color: var(--border-strong); }
+.card__rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--role-mark); }
+.card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.card__title { font-size: 14px; font-weight: 500; line-height: 20px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card__meta { font-size: 12px; line-height: 16px; color: var(--text-2); white-space: nowrap; flex: 0 0 auto; }
+.card__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; font-size: 13px; }
+.card__owner { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.card__body { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.card__body .kv { margin-bottom: 12px; }
+.card__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.card__toggle { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+/* Cardul taie ce iese din raza lui (șina): inelul de focus al butonului interior se desenează spre interior. */
+.card__toggle:focus-visible { outline-offset: -2px; }
+.card__state { color: var(--text-2); }
+.card--selected, .card--open { border-color: var(--border-strong); }
+
+.chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--radius-control); font-size: 12px; font-weight: 500; line-height: 20px;
+        background: var(--role-soft); color: var(--role-text); white-space: nowrap; }
+.chip--count { font-variant-numeric: tabular-nums; }
+button.chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500; }
+button.chip:hover { color: var(--text); }
+/* Chip de filtrare apăsat (clasele proiectului, developerii din jurnal): contur, nu culoare plină. */
+button.chip[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--role-mark); flex: 0 0 auto; }
+.status-line { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+
+.avatar { position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 999px; background: var(--raised);
+          color: var(--text-2); font-size: 10px; font-weight: 500; overflow: hidden; vertical-align: middle; }
+.avatar--16 { width: 16px; height: 16px; font-size: 8px; }
+.avatar--24 { width: 24px; height: 24px; font-size: 10px; }
+.avatar--32 { width: 32px; height: 32px; font-size: 12px; }
+.avatar--40 { width: 40px; height: 40px; font-size: 14px; }
+.avatar--ring { box-shadow: 0 0 0 2px var(--surface); }
+.avatar--offline { opacity: .55; }
+.avatar__initials { line-height: 1; letter-spacing: .02em; user-select: none; }
+.avatar__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 999px; }
+.avatar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 6px; }
+.avatar-row__stack { display: inline-flex; align-items: center; }
+.avatar-row__stack .avatar { margin-left: -6px; }
+.avatar-row__stack .avatar:first-child { margin-left: 0; }
+.avatar-row__names { font-size: 13px; color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+.avatar-row__more { margin-left: 4px; }
+
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: var(--radius-control);
+          border: 1px solid transparent; font: inherit; font-size: 14px; font-weight: 500; line-height: 1; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.button--primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary-border); }
+.button--primary:hover { background: var(--primary-hover); }
+.button--primary:active { background: var(--primary-active); }
+.button--secondary { background: var(--raised); color: var(--text); border-color: var(--border); }
+.button--secondary:hover { background: var(--secondary-hover); border-color: var(--border-strong); }
+.button--ghost { background: transparent; color: var(--text-2); }
+.button--ghost:hover { background: var(--raised); color: var(--text); }
+.button--danger { background: var(--danger-soft); color: var(--danger-text); border-color: color-mix(in srgb, var(--danger-mark) 40%, transparent); }
+.button--danger:hover { background: color-mix(in srgb, var(--danger-mark) 20%, var(--surface)); }
+.button--sm { min-height: 28px; padding: 0 10px; font-size: 13px; }
+.button--block { width: 100%; }
+.button[disabled] { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.button[aria-busy="true"] { opacity: .7; cursor: progress; pointer-events: none; }
+
+.segmented { display: inline-flex; align-items: stretch; height: 32px; padding: 2px; border-radius: var(--radius-control); background: var(--raised); border: 1px solid var(--border); }
+.segmented__item { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid transparent; border-radius: 4px;
+                   background: transparent; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.segmented__item[aria-checked="true"] { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+
+.row { display: flex; align-items: center; gap: 8px 12px; min-height: 32px; padding: 6px 12px; border-radius: var(--radius-control); }
+.row + .row { margin-top: 4px; }
+.row--clickable { cursor: pointer; width: 100%; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; }
+.row--clickable:hover, .row--selected { background: var(--raised); }
+.row__lead { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.row__primary { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.row--mono .row__primary { font-family: var(--mono); font-size: 12px; }
+.row__secondary { flex: 0 0 auto; font-size: 12px; color: var(--text-2); text-align: right; white-space: nowrap; }
+.row__action { flex: 0 0 auto; display: inline-flex; gap: 6px; }
+.row--two-line { flex-wrap: wrap; }
+.row--two-line .row__secondary { flex-basis: 100%; text-align: left; padding-left: 0; }
+.row__confirm { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0 2px; font-size: 13px; color: var(--text-2); }
+/* Baza 0: rândul cu text lung (căi, sumare) se strânge în loc să treacă pe linia următoare. */
+.row__stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 0; }
+.row__stack .row__primary { flex: none; }
+.row__stack .row__sub { font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
+
+.empty { padding: 12px; border-radius: var(--radius-control); background: var(--raised); color: var(--text-2); font-size: 13px; line-height: 18px; }
+
+.banner { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 15px; border-radius: var(--radius-card); background: var(--role-soft); color: var(--role-text); font-size: 13px; overflow: hidden; }
+.banner__rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--role-mark); }
+.banner__text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.banner__close { flex: 0 0 auto; color: inherit; }
+.banner__close:focus-visible { outline-offset: -2px; }
+/* Bannerul temporar dispare cu opacitate (§13), nu prin dispariție bruscă. */
+.banner--leaving { opacity: 0; }
+
+.section { margin-top: 24px; }
+.section:first-child { margin-top: 0; }
+.section__header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.section__title { flex: 1 1 auto; font-size: 16px; line-height: 22px; font-weight: 600; }
+.section__count { height: 20px; min-width: 20px; padding: 0 7px; border-radius: 999px; background: var(--raised); color: var(--text-2); font-size: 12px; font-weight: 500; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.section__subtitle { font-size: 12px; color: var(--text-2); margin-bottom: 8px; }
+.section__body { display: flex; flex-direction: column; gap: 8px; }
+.section__body--rows { gap: 0; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tab { position: relative; padding: 8px 12px 10px; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.tab::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; background: transparent; border-radius: 2px; }
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--text); }
+.tab[aria-selected="true"]::after { background: var(--primary-mark); }
+.tab__badge { margin-left: 6px; vertical-align: 1px; }
+.tabpanel { min-width: 0; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field__label { font-size: 13px; font-weight: 500; color: var(--text); }
+.field__hint { font-size: 12px; color: var(--text-2); }
+.field__error { font-size: 13px; color: var(--danger-text); }
+.field__error:empty { display: none; }
+.segmented + .field__hint { margin-top: 8px; }
+.input, .select { width: 100%; height: 32px; padding: 0 10px; border-radius: var(--radius-control); border: 1px solid var(--border-input); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; }
+:root[data-theme="dark"] .input, :root[data-theme="dark"] .select { background: var(--bg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .input, :root:not([data-theme="light"]) .select { background: var(--bg); } }
+.input::placeholder { color: var(--text-2); }
+.input:hover, .select:hover { border-color: var(--border-strong); }
+.input--mono { font-family: var(--mono); font-size: 13px; }
+.input[aria-invalid="true"] { border-color: var(--danger-mark); }
+.select { cursor: pointer; }
+.select--workspace { display: block; margin-bottom: 16px; }
+
+.flow { display: flex; flex-direction: column; gap: 12px; max-height: 360px; overflow-y: auto; padding: 2px 0; }
+.bubble { position: relative; max-width: 64ch; font-size: 14px; }
+.bubble__author { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 2px; }
+.bubble__body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble__rail { position: absolute; left: 0; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: var(--role-mark); }
+.bubble--user { align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: var(--radius-card); background: var(--raised); border: 1px solid var(--border); }
+.bubble--assistant .bubble__author { color: var(--role-text); }
+.bubble--tool, .bubble--claim, .bubble--approval, .bubble--error, .bubble--notice { padding-left: 11px; font-size: 13px; color: var(--text-2); }
+.bubble--tool .bubble__body { font-family: var(--mono); font-size: 12px; }
+.bubble--approval { color: var(--text); }
+.bubble--error { color: var(--danger-text); }
+.flow__end { display: flex; justify-content: flex-end; }
+
+.bar { height: 6px; border-radius: 3px; background: var(--neutral-mark); }
+.row--selected .bar { background: var(--primary-mark); }
+.wordmark { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.wordmark::before { content: ""; width: 12px; height: 12px; border-radius: 999px; border: 2px solid var(--primary-mark); background: radial-gradient(circle, var(--primary-mark) 0 2px, transparent 2.5px); flex: 0 0 auto; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; font-size: 13px; }
+.kv dt { color: var(--text-2); font-size: 12px; line-height: 18px; }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* 5. Layout (§9.4) */
+.auth { min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 16px; padding: 16px; }
+.auth__card { width: min(400px, 100%); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.auth__title { display: flex; align-items: center; gap: 12px; font-size: 16px; line-height: 22px; font-weight: 600; }
+.auth__text { color: var(--text-2); font-size: 14px; line-height: 20px; }
+.auth__foot { font-size: 12px; color: var(--text-2); }
+.shell { display: grid; grid-template-rows: auto auto 1fr; min-height: 100vh; }
+/* Bara de sus rămâne pe un rând de 52 px; dacă tot nu încape (zoom 200 %), se rupe în loc să deruleze orizontal. */
+.topbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 52px; padding-block: 6px; padding-inline: 16px; background: var(--surface); border-bottom: 1px solid var(--border); min-width: 0; }
+.topbar__spacer { flex: 1; }
+.topbar__me { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.topbar__name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.notices { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 0; }
+.notices:empty { display: none; }
+.body { display: grid; grid-template-columns: 1fr; min-width: 0; grid-row: 3; } /* rândul 1fr chiar și când .notices este gol */
+.sidebar { display: none; }
+.sidebar__title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.sidebar__list { display: flex; flex-direction: column; gap: 8px; }
+.sidebar__foot { margin-top: 24px; font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+.ws-card__line { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--text-2); }
+.ws-card__count { flex: 0 0 auto; margin-left: auto; font-variant-numeric: tabular-nums; }
+.content { padding: 16px; max-width: 960px; width: 100%; min-width: 0; }
+.content__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.content__place { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+.project { display: grid; grid-template-columns: 1fr; gap: 24px; }
+.project__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); margin-bottom: 12px; }
+.project__search { max-width: 320px; margin-bottom: 16px; }
+.group-row .row__secondary { min-width: 56px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+/* --bar este raportul count/max (0–1); lățimea reală se scalează după lățimea disponibilă. */
+.group-row .bar { flex: 0 0 auto; width: calc(var(--bar, 0) * 240px); min-width: 8px; max-width: 240px; }
+.group-row .row__primary { flex: 0 0 180px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.class-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.entries { overflow-x: auto; }
+.list-more { margin-top: 8px; }
+
+/* 6. Responsive (§9.5) */
+/* Sub 560 px eticheta temei și badge-ul de așteptare se scurtează din JS (matchMedia NARROW). */
+@media (max-width: 560px) {
+  .topbar__name { max-width: 96px; }
+}
+@media (max-width: 400px) {
+  .content { padding: 12px 16px; }
+  .button { min-height: 40px; }
+  .button--sm { min-height: 32px; }
+  .card__head { flex-wrap: wrap; }
+  .card__meta { flex-basis: 100%; }
+  .row { flex-wrap: wrap; }
+  .row__secondary { flex-basis: 100%; text-align: left; }
+  /* Butoanele rândului (Aprobă/Revocă/Uită) trec pe linia lor, ca textul să nu fie strivit. */
+  .row__action { flex-basis: 100%; justify-content: flex-end; }
+  .tabs { width: 100%; }
+  .tab { flex: 1; text-align: center; padding-inline: 6px; }
+  .topbar { gap: 8px; padding-inline: 12px; }
+  .topbar__name { display: none; }
+  .wordmark { font-size: 15px; }
+  .group-row .row__primary { flex-basis: 100%; }
+  .group-row .row__secondary { flex-basis: auto; }
+  .group-row .bar { width: calc(var(--bar, 0) * 160px); max-width: 160px; }
+}
+@media (min-width: 401px) and (max-width: 899px) {
+  .content { max-width: 720px; margin-inline: auto; }
+}
+@media (min-width: 401px) and (max-width: 560px) {
+  /* Peste 400 px rândul de grupă redevine o singură linie, dar eticheta de 180 px plus bara de 240 px nu încap:
+     amândouă se strâng, ca fila Proiect să nu deruleze orizontal (§9.5, „nicio lățime nu produce scroll orizontal”). */
+  .group-row .row__primary { flex-basis: 120px; }
+  .group-row .bar { width: calc(var(--bar, 0) * 120px); max-width: 120px; }
+}
+@media (min-width: 900px) {
+  .body { grid-template-columns: 240px 1fr; }
+  .sidebar { display: block; border-right: 1px solid var(--border); background: var(--surface); padding: 16px 12px; }
+  .select--workspace { display: none; }
+  .content { padding: 24px; }
+}
+@media (min-width: 1400px) {
+  .project { grid-template-columns: 360px 1fr; }
+  /* Lista de grupe stă pe o coloană îngustă: eticheta și bara se strâng ca să încapă pe un rând. */
+  .group-row .row__primary { flex-basis: 140px; }
+  .group-row .bar { width: calc(var(--bar, 0) * 100px); max-width: 100px; }
+  /* Fără grupă selectată și fără căutare, detaliul este ascuns: lista ocupă toată lățimea (§11.5), nu 360 px cu restul gol. */
+  .project--single { grid-template-columns: 1fr; }
+  .project--single .group-row .row__primary { flex-basis: 180px; }
+  .project--single .group-row .bar { width: calc(var(--bar, 0) * 240px); max-width: 240px; }
+}
+
+/* 7. Mișcare (§9.6) */
+.button, .card, .row--clickable, .tab, .segmented__item, .input, .banner, .select
+  { transition: background-color var(--duration), border-color var(--duration), color var(--duration), opacity var(--duration); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<!-- Ecranul de login (§11.1) -->
+<section id="screen-login" class="auth" hidden aria-labelledby="login-title">
+  <div class="card card--static auth__card">
+    <h1 id="login-title" class="auth__title"><span class="wordmark">Studio Harness</span></h1>
+    <p class="auth__text">Deschide panoul din pluginul Studio Harness (butonul „Panou”). Se autentifică singur.</p>
+    <form id="login-form" class="field" autocomplete="off" novalidate>
+      <label class="field__label" for="login-code">sau lipește codul</label>
+      <input id="login-code" class="input input--mono" type="password" autocomplete="off" spellcheck="false" placeholder="cod de dispozitiv sau admin" aria-describedby="login-error">
+      <p id="login-error" class="field__error" role="alert"></p>
+      <button id="login-submit" class="button button--primary button--block" type="submit">Intră</button>
+    </form>
+    <p class="auth__foot">Codul rămâne doar în acest browser.</p>
+  </div>
+  <button class="button button--ghost js-theme" type="button">Temă: Auto</button>
+</section>
+
+<!-- Ecranul de așteptare: pending, revocat sau hub-ul nu răspunde (§11.2) -->
+<section id="screen-wait" class="auth" hidden aria-labelledby="wait-title">
+  <div class="card card--static auth__card">
+    <p class="wordmark">Studio Harness</p>
+    <h1 id="wait-title" class="auth__title">
+      <span id="wait-avatar" class="avatar avatar--40" aria-hidden="true"><span class="avatar__initials">?</span></span>
+      <span id="wait-heading">Dispozitivul tău așteaptă aprobarea</span>
+    </h1>
+    <p id="wait-text" class="auth__text">Un admin îl aprobă din fila Dispozitive. Pagina se actualizează singură.</p>
+    <dl id="wait-facts" class="kv">
+      <dt>Dispozitiv</dt><dd id="wait-device" class="mono">—</dd>
+      <dt>Roblox</dt><dd id="wait-roblox">—</dd>
+      <dt>Mașină</dt><dd id="wait-machine">—</dd>
+    </dl>
+    <p class="status-line" role="status" aria-live="polite"><span id="wait-dot" class="dot" data-role="warning"></span><span id="wait-status">În așteptare · verific la 5 s</span></p>
+    <button id="wait-other" class="button button--ghost" type="button">Folosește alt cod</button>
+  </div>
+  <button class="button button--ghost js-theme" type="button">Temă: Auto</button>
+</section>
+
+<!-- Shell (§11.3) -->
+<div id="screen-shell" class="shell" hidden>
+  <header class="topbar">
+    <span class="wordmark">Studio Harness</span>
+    <span class="topbar__spacer"></span>
+    <button class="button button--ghost button--sm js-theme" type="button">Temă: Auto</button>
+    <span id="me" class="topbar__me">
+      <span id="me-avatar" class="avatar avatar--32" role="img"><span class="avatar__initials">?</span></span>
+      <span id="me-name" class="topbar__name">—</span>
+      <span id="me-admin" class="chip" data-role="neutral" hidden>admin</span>
+    </span>
+    <button id="pending-badge" class="chip" data-role="warning" type="button" hidden>0 în așteptare</button>
+  </header>
+  <div id="notices" class="notices" aria-live="polite"></div>
+  <div class="body">
+    <nav class="sidebar" aria-label="Workspace-uri">
+      <h2 class="sidebar__title">Workspace-uri</h2>
+      <div id="ws-list" class="sidebar__list"></div>
+      <p id="ws-empty" class="empty" hidden>Niciun workspace încă. Deschide un joc în Studio cu pluginul instalat și va apărea aici.</p>
+      <p id="sidebar-foot" class="sidebar__foot">hub — · v—</p>
+    </nav>
+    <main class="content">
+      <label class="sr-only" for="ws-select">Workspace</label>
+      <select id="ws-select" class="select select--workspace"></select>
+      <div class="content__header">
+        <h1 id="ws-name">—</h1>
+        <span id="ws-place" class="content__place"></span>
+        <!-- Prezența proprie, separat de „al tău” (care înseamnă „locul îți aparține”, ca în plugin). -->
+        <span id="ws-here" class="chip" data-role="primary" hidden>ești aici</span>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Secțiuni">
+        <button class="tab" role="tab" id="tab-activity" aria-selected="true" aria-controls="panel-activity" data-tab="activity">Activitate</button>
+        <button class="tab" role="tab" id="tab-project" aria-selected="false" aria-controls="panel-project" data-tab="project" tabindex="-1">Proiect</button>
+        <button class="tab" role="tab" id="tab-devices" aria-selected="false" aria-controls="panel-devices" data-tab="devices" tabindex="-1">Dispozitive<span id="tab-devices-badge" class="chip chip--count tab__badge" data-role="warning" aria-hidden="true" hidden>0</span></button>
+      </div>
+
+      <!-- Activitate -->
+      <section id="panel-activity" class="tabpanel" role="tabpanel" aria-labelledby="tab-activity">
+        <div id="no-workspace" class="empty" hidden>Niciun workspace selectat. Deschide un joc în Studio cu pluginul instalat sau alege unul din listă.</div>
+        <div id="activity-body">
+          <section class="section" aria-labelledby="present-title">
+            <div class="section__header"><h2 id="present-title" class="section__title">Prezenți</h2><span id="present-count" class="section__count">0</span></div>
+            <div id="present" class="avatar-row"></div>
+            <p id="present-empty" class="empty" hidden></p>
+          </section>
+          <section class="section" aria-labelledby="sessions-title">
+            <div class="section__header"><h2 id="sessions-title" class="section__title">Sesiuni live</h2><span id="sessions-count" class="section__count">0</span></div>
+            <div id="sessions" class="section__body" role="list"></div>
+            <p id="sessions-empty" class="empty" hidden>Nicio sesiune activă. Pornește una din plugin sau din terminal.</p>
+          </section>
+          <section class="section" aria-labelledby="claims-title">
+            <div class="section__header"><h2 id="claims-title" class="section__title">Claims</h2><span id="claims-count" class="section__count">0</span></div>
+            <div id="claims" class="section__body section__body--rows" role="list"></div>
+            <p id="claims-empty" class="empty" hidden>Nicio zonă revendicată în acest workspace.</p>
+          </section>
+          <section class="section" aria-labelledby="journal-title">
+            <div class="section__header"><h2 id="journal-title" class="section__title">Jurnal</h2><span id="journal-count" class="section__count">0</span></div>
+            <div id="journal-filter" class="class-chips" role="group" aria-label="Filtrează jurnalul după developer" hidden></div>
+            <div id="journal" class="section__body section__body--rows" role="list"></div>
+            <p id="journal-empty" class="empty" hidden>Nicio modificare înregistrată încă.</p>
+            <button id="journal-more" class="button button--ghost button--sm list-more" type="button" hidden>Arată mai mult</button>
+          </section>
+        </div>
+      </section>
+
+      <!-- Proiect (§11.5): harta pe grupe funcționale, căutare, detalii pe grupă cu intrările -->
+      <section id="panel-project" class="tabpanel" role="tabpanel" aria-labelledby="tab-project" hidden>
+        <p id="project-meta" class="project__meta"></p>
+        <p id="project-empty" class="empty" hidden>Harta proiectului apare după prima scanare din Studio (aproximativ 30 s după conectare).</p>
+        <div id="project-body" class="project" hidden>
+          <div>
+            <div class="field project__search">
+              <label class="sr-only" for="project-search">Caută în proiect</label>
+              <input id="project-search" class="input" type="search" placeholder="Caută după nume, clasă sau cale" autocomplete="off" aria-describedby="project-search-hint">
+              <p id="project-search-hint" class="field__hint">Caută în grupa selectată sau în toate grupele.</p>
+            </div>
+            <section class="section" aria-labelledby="groups-title">
+              <div class="section__header"><h2 id="groups-title" class="section__title">Grupe</h2><span id="groups-count" class="section__count">0</span></div>
+              <div id="groups" class="section__body section__body--rows"></div>
+              <p id="groups-empty" class="empty" hidden>Scanarea nu a găsit nicio instanță în acest loc.</p>
+            </section>
+          </div>
+          <section id="group-detail" class="section" aria-labelledby="group-title" hidden>
+            <div class="section__header"><h2 id="group-title" class="section__title">—</h2><span id="group-count" class="section__count">0</span></div>
+            <p id="group-classes" class="section__subtitle"></p>
+            <div id="group-chips" class="class-chips" role="group" aria-label="Filtrează după clasă" hidden></div>
+            <div id="group-entries" class="section__body section__body--rows entries" role="list"></div>
+            <p id="group-empty" class="empty" hidden></p>
+            <button id="group-clear" class="button button--ghost button--sm list-more" type="button" hidden>Șterge căutarea</button>
+            <button id="group-more" class="button button--ghost button--sm list-more" type="button" hidden>Arată mai mult</button>
+          </section>
+        </div>
+      </section>
+
+      <!-- Dispozitive (§11.6) -->
+      <section id="panel-devices" class="tabpanel" role="tabpanel" aria-labelledby="tab-devices" hidden>
+        <div id="devices-admin" hidden>
+          <section class="section" aria-labelledby="enroll-title">
+            <div class="section__header"><h2 id="enroll-title" class="section__title">Înrolare</h2></div>
+            <div id="enrollment" class="segmented" role="radiogroup" aria-label="Modul de înrolare">
+              <button class="segmented__item" role="radio" aria-checked="true" data-mode="approve" type="button">Cu aprobare</button>
+              <button class="segmented__item" role="radio" aria-checked="false" data-mode="open" type="button">Deschisă</button>
+            </div>
+            <p id="enrollment-hint" class="field__hint">Cu aprobare: dispozitivele noi așteaptă un click aici.</p>
+          </section>
+          <section class="section" aria-labelledby="pending-title">
+            <div class="section__header"><h2 id="pending-title" class="section__title">În așteptare</h2><span id="pending-count" class="section__count">0</span></div>
+            <div id="pending-list" class="section__body" role="list"></div>
+            <p id="pending-empty" class="empty" hidden>Niciun dispozitiv în așteptare.</p>
+          </section>
+          <section class="section" aria-labelledby="devices-title">
+            <div class="section__header"><h2 id="devices-title" class="section__title">Toate dispozitivele</h2><span id="devices-count" class="section__count">0</span></div>
+            <div id="devices-list" class="section__body section__body--rows" role="list"></div>
+            <p id="devices-empty" class="empty" hidden>Niciun dispozitiv înregistrat.</p>
+          </section>
+        </div>
+        <div id="devices-own" hidden>
+          <section class="section" aria-labelledby="own-title">
+            <div class="section__header"><h2 id="own-title" class="section__title">Dispozitivul tău</h2></div>
+            <div id="own-device" class="section__body section__body--rows" role="list"></div>
+            <p class="empty">Doar adminul vede și aprobă celelalte dispozitive.</p>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+"use strict";
+(function () {
+  // ---------- constante ----------
+  var KEYS = { device: "studioHarness.device", admin: "studioHarness.admin", theme: "studioHarness.theme", workspace: "studioHarness.workspace" };
+  var PANEL_INTERVAL = 2000, WAIT_INTERVAL = 5000, PROJECT_INTERVAL = 30000, SESSION_INTERVAL = 2000, PAGE = 50, ONLINE_SECONDS = 15;
+  var HEX64 = /^[0-9a-f]{64}$/i;
+  var DEMO = /(?:\?|&)demo=1(?:&|$)/.test(location.search);
+  // Panoul poate fi servit sub un prefix (https://lostcube.pro/roblox/harness/panel): rutele /hub/... se cer relativ la el.
+  var BASE_PATH = location.pathname.replace(/\/panel\/?$/, "").replace(/\/+$/, "");
+  var ROLE_OF_STATE = { draft: "neutral", sending: "info", uncertain: "warning", queued: "info", running: "primary",
+    waiting_approval: "warning", completed: "completed", failed: "danger", cancelled: "neutral", lost: "danger" };
+  var LABEL_OF_STATE = { draft: "Draft", sending: "Se trimite", uncertain: "Trimitere neconfirmată", queued: "În coadă",
+    running: "În lucru", waiting_approval: "Cere aprobare", completed: "Finalizat", failed: "Eroare", cancelled: "Oprit", lost: "Job indisponibil" };
+  // Ultima bulă a unei sesiuni (evenimentul `done`): propoziții proprii, nu eticheta de stare pusă la forma mică.
+  // „Sesiune” este feminin, deci „Finalizat”/„Oprit”/„Job indisponibil” ar da „Sesiune finalizat.”, „Sesiune oprit.”,
+  // „Sesiune job indisponibil.” — greșit gramatical și fără sens. Fără punct final aici: îl pune `bubbleOf`.
+  var DONE_TEXT = { queued: "Sesiunea a intrat în coadă", running: "Sesiunea rulează",
+    waiting_approval: "Sesiunea așteaptă o aprobare", completed: "Sesiunea s-a încheiat",
+    failed: "Sesiunea s-a încheiat cu o eroare", cancelled: "Sesiunea a fost oprită",
+    lost: "Sesiunea s-a pierdut; dispozitivul nu mai răspunde" };
+  var ROLE_OF_DEVICE = { pending: "warning", approved: "primary", revoked: "danger" };
+  var LABEL_OF_DEVICE = { pending: "În așteptare", approved: "Aprobat", revoked: "Revocat" };
+  var PROVIDER_LABEL = { claude: "Claude Code", codex: "Codex" };
+  var KIND_LABEL = { studio: "Studio", terminal: "Terminal" };
+  var GROUP_LABELS = { graphics: "Grafică", assets: "Asseturi", audio: "Audio", ui: "Interfață", scripts_server: "Scripturi server",
+    scripts_client: "Scripturi client", scripts_shared: "Module partajate", networking: "Rețea", data: "Date", physics: "Fizică",
+    gameplay: "Gameplay", settings: "Setări", other: "Altele" };
+  var GROUP_KEYS = Object.keys(GROUP_LABELS);
+  var CLAIM_ACTION = { claimed: "Claim acordat", released: "Claim eliberat", denied: "Claim refuzat", expired: "Claim expirat" };
+  var THEME_LABEL = { auto: "Temă: Auto", light: "Temă: Luminos", dark: "Temă: Întunecat" };
+  var THEME_SHORT = { auto: "Auto", light: "Luminos", dark: "Întunecat" };
+  var THEME_SPOKEN = { auto: "automată", light: "luminoasă", dark: "întunecată" };
+  // Sub 560 px bara de sus nu are loc pentru etichetele lungi: textele se scurtează, sensul rămâne în aria-label.
+  var NARROW = window.matchMedia ? window.matchMedia("(max-width: 560px)") : null;
+  function isNarrow() { return !!(NARROW && NARROW.matches); }
+  var MSG = {
+    refused: "Codul nu a fost acceptat. Verifică-l sau deschide panoul din plugin (butonul Panou).",
+    revoked: "Accesul acestui dispozitiv a fost revocat. Cere adminului să-l aprobe din nou.",
+    expired: "Sesiunea a expirat sau codul s-a schimbat. Lipește codul din nou.",
+    hubDown: "Hub-ul nu răspunde. Se reîncearcă la 2 s.",
+    loginDown: "Hub-ul nu răspunde. Încearcă din nou.",
+    demo: "Date de exemplu. Nimic de aici nu vine de la un hub real."
+  };
+
+  // ---------- stare ----------
+  var state = {
+    codes: { device: null, admin: null },
+    screen: null,
+    me: null, hub: null, workspaces: [], selected: null, pendingDevices: 0,
+    workspaceKey: null, autoPicked: false,
+    tab: "activity",
+    project: null, projectKey: null, projectDigest: null, projectFetchedAt: 0, projectLoading: false,
+    selectedGroup: null, classFilter: null, search: "", groupShown: PAGE,
+    journalShown: PAGE, journalAuthor: null,
+    session: null,
+    devices: null, devicesLoading: false, confirm: null,
+    clockOffset: 0, hubDown: false, waitKind: null,
+    panelSignature: null, panelSoon: false,
+    timers: {}
+  };
+
+  // ---------- utilitare ----------
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+  function setText(node, value) {
+    var s = value === undefined || value === null ? "" : String(value);
+    if (node.textContent !== s) node.textContent = s;
+  }
+  function setHidden(node, hidden) { if (node.hidden !== !!hidden) node.hidden = !!hidden; }
+  function setRole(node, role) { if (node.dataset.role !== role) node.dataset.role = role; }
+  function setAttr(node, name, value) { if (node.getAttribute(name) !== value) node.setAttribute(name, value); }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function str(value, fallback) { return typeof value === "string" && value ? value : (fallback || ""); }
+  function num(value) { return typeof value === "number" && isFinite(value) ? value : 0; }
+  function arr(value) { return Array.isArray(value) ? value : []; }
+  function obj(value) { return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
+  function fmtInt(n) { return num(n).toLocaleString("ro-RO"); }
+  function nowSec() { return Date.now() / 1000 + state.clockOffset; }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtHM(t) { var d = new Date(num(t) * 1000); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+  function shortId(id, n) { return str(id).slice(0, n || 8); }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function elapsedLabel(seconds) {
+    var d = Math.max(0, Math.floor(seconds));
+    if (d < 60) return d + " s";
+    if (d < 3600) return Math.floor(d / 60) + " min";
+    if (d < 86400) { var h = Math.floor(d / 3600), m = Math.floor((d % 3600) / 60); return h + " h" + (m ? " " + m + " min" : ""); }
+    var days = Math.floor(d / 86400);
+    return days === 1 ? "1 zi" : days + " zile";
+  }
+  function sinceLabel(t, fmt) {
+    if (!t) return "—";
+    if (fmt === "expira") { var left = num(t) - nowSec(); return left <= 0 ? "expirat" : "expiră în " + elapsedLabel(left); }
+    var d = nowSec() - num(t);
+    if (fmt === "acum") return d < 5 ? "acum" : "acum " + elapsedLabel(d);
+    return d < 5 ? "chiar acum" : "de " + elapsedLabel(d);
+  }
+  // Timpul scurs se recalculează local la fiecare secundă (§13): elementele poartă data-since și data-fmt.
+  function setSince(node, t, fmt) {
+    var v = String(num(t));
+    if (node.dataset.since !== v) node.dataset.since = v;
+    if (node.dataset.fmt !== fmt) node.dataset.fmt = fmt;
+    setText(node, sinceLabel(t, fmt));
+  }
+  function tickSince() {
+    var nodes = document.querySelectorAll("[data-since]");
+    for (var i = 0; i < nodes.length; i++) setText(nodes[i], sinceLabel(Number(nodes[i].dataset.since), nodes[i].dataset.fmt));
+  }
+  function initials(name) {
+    var words = str(name).trim().split(/[\s._-]+/).filter(Boolean);
+    if (!words.length) return "?";
+    var s = words[0].charAt(0) + (words.length > 1 ? words[1].charAt(0) : (words[0].length > 1 ? words[0].charAt(1) : ""));
+    return s.toUpperCase();
+  }
+  function shortPath(path) {
+    var p = str(path);
+    if (p.length <= 48) return p;
+    var segs = p.split(".");
+    if (segs.length <= 3) return p;
+    return "…" + segs.slice(-3).join(".");
+  }
+  function normalizePath(path) {
+    var p = str(path).trim();
+    if (p.indexOf("game.") === 0) p = p.slice(5);
+    var segs = p.split(".").filter(function (s) { return s.length; });
+    if (segs.length && segs[0].toLowerCase() === "workspace") segs[0] = "Workspace";
+    return segs;
+  }
+  // Claim-ul care acoperă calea (egal sau strămoș; @all acoperă tot).
+  function claimFor(path) {
+    var claims = state.selected ? arr(state.selected.claims) : [];
+    var segs = normalizePath(path);
+    for (var i = 0; i < claims.length; i++) {
+      var c = claims[i], cp = normalizePath(c.path);
+      if (!cp.length) continue;
+      if (cp[0] === "@all") return c;
+      if (cp[0].charAt(0) === "@" || cp.length > segs.length) continue;
+      var ok = true;
+      for (var j = 0; j < cp.length; j++) if (cp[j] !== segs[j]) { ok = false; break; }
+      if (ok) return c;
+    }
+    return null;
+  }
+  function schedule(name, fn, ms) { clearTimeout(state.timers[name]); state.timers[name] = setTimeout(fn, ms); }
+  function cancel(name) { clearTimeout(state.timers[name]); delete state.timers[name]; }
+  // Reconciliere DOM cu chei (§13): nodurile existente se păstrează și se reordonează, nu se reconstruiesc.
+  function reconcile(container, items, keyOf, create, update) {
+    var existing = {};
+    for (var i = 0; i < container.children.length; i++) existing[container.children[i].dataset.key] = container.children[i];
+    var prev = null;
+    items.forEach(function (item) {
+      var key = String(keyOf(item)), node = existing[key];
+      if (node) delete existing[key];
+      else { node = create(item); node.dataset.key = key; }
+      update(node, item);
+      var ref = prev ? prev.nextSibling : container.firstChild;
+      if (node !== ref) container.insertBefore(node, ref);
+      prev = node;
+    });
+    Object.keys(existing).forEach(function (key) { container.removeChild(existing[key]); });
+  }
+
+  // ---------- stocare locală ----------
+  function storeGet(key) { try { return localStorage.getItem(key) || ""; } catch (e) { return ""; } }
+  function storeSet(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* stocare indisponibilă: valoarea rămâne în memorie */ } }
+  function storeDel(key) { try { localStorage.removeItem(key); } catch (e) { /* nimic de șters */ } }
+  function loadCodes() {
+    var device = storeGet(KEYS.device), admin = storeGet(KEYS.admin);
+    state.codes.device = HEX64.test(device) ? device.toLowerCase() : null;
+    state.codes.admin = admin.length >= 16 ? admin : null;
+  }
+  function setCode(kind, value) { state.codes[kind] = value; storeSet(KEYS[kind], value); }
+  function clearCodes() { state.codes.device = null; state.codes.admin = null; storeDel(KEYS.device); storeDel(KEYS.admin); }
+
+  // ---------- temă ----------
+  function currentTheme() { var t = storeGet(KEYS.theme); return t === "light" || t === "dark" ? t : "auto"; }
+  function applyTheme() {
+    var t = currentTheme();
+    if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    var buttons = document.querySelectorAll(".js-theme");
+    for (var i = 0; i < buttons.length; i++) {
+      setText(buttons[i], isNarrow() ? THEME_SHORT[t] : THEME_LABEL[t]);
+      setAttr(buttons[i], "aria-label", "Schimbă tema (acum: " + THEME_SPOKEN[t] + ")");
+    }
+  }
+  function cycleTheme() {
+    var order = ["auto", "light", "dark"], next = order[(order.indexOf(currentTheme()) + 1) % order.length];
+    if (next === "auto") storeDel(KEYS.theme); else storeSet(KEYS.theme, next);
+    applyTheme();
+  }
+
+  // ---------- avatare (§7.4): imagine din /hub/avatar peste inițiale; la eroare/204 rămân inițialele ----------
+  // `decorative`: avatarul stă lângă numele scris; cititorul de ecran nu trebuie să-l audă de două ori.
+  function makeAvatar(size, decorative) {
+    var node = el("span", "avatar avatar--" + size);
+    if (decorative) node.setAttribute("aria-hidden", "true"); else node.setAttribute("role", "img");
+    node.appendChild(el("span", "avatar__initials", "?"));
+    return node;
+  }
+  function setAvatar(node, userId, name, offline) {
+    var label = str(name, "Studio"), id = num(userId);
+    setText(node.firstChild, id > 0 || str(name) ? initials(label) : "?");
+    if (node.getAttribute("aria-hidden") !== "true") setAttr(node, "aria-label", label);
+    node.classList.toggle("avatar--offline", !!offline);
+    var img = node.querySelector("img");
+    if (id > 0 && !DEMO) {
+      var src = BASE_PATH + "/hub/avatar?user=" + encodeURIComponent(String(id)) + "&size=48";
+      if (!img) {
+        img = el("img", "avatar__img");
+        img.alt = "";
+        img.addEventListener("error", function () { img.hidden = true; img.dataset.failed = img.getAttribute("src") || ""; });
+        img.addEventListener("load", function () { img.hidden = false; });
+        node.appendChild(img);
+      }
+      if (img.getAttribute("src") !== src) { img.dataset.failed = ""; img.hidden = true; img.setAttribute("src", src); }
+    } else if (img) node.removeChild(img);
+  }
+
+  // ---------- cereri (numai către aceeași origine, relativ la BASE_PATH) ----------
+  function HubFailure(status, data, message) { this.status = status; this.data = data || {}; this.message = message; }
+  function headersFor(codes) {
+    var h = { "Accept": "application/json" };
+    if (codes.device) h["X-Studio-Harness-Device"] = codes.device;
+    if (codes.admin) h["X-Studio-Harness-Admin"] = codes.admin;
+    return h;
+  }
+  function rawRequest(method, path, body, codes) {
+    if (DEMO) return demoRequest(method, path, body);
+    var init = { method: method, headers: headersFor(codes || state.codes), cache: "no-store", credentials: "omit", redirect: "error" };
+    if (body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(body); }
+    return fetch(BASE_PATH + path, init).then(function (res) {
+      return res.text().then(function (text) {
+        var data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch (e) { data = {}; }
+        return { status: res.status, data: obj(data) || {} };
+      });
+    });
+  }
+  function api(method, path, body, codes) {
+    return rawRequest(method, path, body, codes).then(function (res) {
+      if (res.status >= 200 && res.status < 300) return res.data;
+      throw new HubFailure(res.status, res.data, str(res.data.error, "HTTP " + res.status));
+    }, function () { throw new HubFailure(0, {}, "network"); });
+  }
+  // 401 → login; 403 pending/revoked → ecranul de așteptare. Întoarce true dacă a schimbat ecranul.
+  function handleAccess(err) {
+    if (!(err instanceof HubFailure)) return false;
+    if (err.status === 401) { stopAll(); clearCodes(); showLogin(MSG.expired); return true; }
+    if (err.status === 403 && (err.data.status === "pending" || err.data.status === "revoked")) {
+      stopAll();
+      showWait(err.data.status, { device_id: err.data.device_id });
+      schedule("wait", pollStatus, WAIT_INTERVAL);
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- date de exemplu (?demo=1): nicio cerere către server ----------
+  var demo = null;
+  function demoInit() {
+    var now = Date.now() / 1000;
+    var ws = {
+      "game:987654": { key: "game:987654", game_id: 987654, place_id: 1291603, name: "Ball", creator_id: 555, creator_type: "User", first_seen: now - 86400 * 12, last_seen: now - 1 },
+      "game:1122": { key: "game:1122", game_id: 1122, place_id: 22334455, name: "Arena", creator_id: 9000, creator_type: "Group", first_seen: now - 86400 * 40, last_seen: now - 40 },
+      "place:778899": { key: "place:778899", game_id: 0, place_id: 778899, name: "Lobby v2", creator_id: 555, creator_type: "User", first_seen: now - 86400 * 3, last_seen: now - 7200 }
+    };
+    var devices = [
+      { device_id: "ab12cd34ef567890", roblox_user_id: 12345, roblox_name: "ellob", machine: "PC-ELLOB", bridge_id: "b1", version: "1.0.0", status: "approved", first_seen: now - 86400 * 12, last_seen: now - 1, approved_at: now - 86400 * 12, approved_by: "admin", workspace: "game:987654" },
+      { device_id: "77aa11bb22cc33dd", roblox_user_id: 777, roblox_name: "ana", machine: "PC-ANA", bridge_id: "b2", version: "1.0.0", status: "approved", first_seen: now - 86400 * 9, last_seen: now - 3, approved_at: now - 86400 * 9, approved_by: "admin", workspace: "game:987654" },
+      { device_id: "5e6f7a8b9c0d1e2f", roblox_user_id: 4242, roblox_name: "mihai", machine: "PC-MIHAI", bridge_id: "b3", version: "1.0.0", status: "approved", first_seen: now - 86400 * 2, last_seen: now - 2, approved_at: now - 86400 * 2, approved_by: "open", workspace: "game:987654" },
+      { device_id: "9f8e7d6c5b4a3f2e", roblox_user_id: 0, roblox_name: "", machine: "LAPTOP-7", bridge_id: "b4", version: "1.0.0", status: "pending", first_seen: now - 540, last_seen: now - 4, approved_at: 0, approved_by: "", workspace: null },
+      { device_id: "3c4d5e6f7a8b9c0d", roblox_user_id: 3131, roblox_name: "irina", machine: "PC-IRINA", bridge_id: "b5", version: "1.0.0", status: "pending", first_seen: now - 120, last_seen: now - 6, approved_at: 0, approved_by: "", workspace: "game:1122" },
+      { device_id: "c0ffee1234567890", roblox_user_id: 5151, roblox_name: "ion", machine: "PC-ION", bridge_id: "b6", version: "0.8.0", status: "revoked", first_seen: now - 86400 * 30, last_seen: now - 86400, approved_at: now - 86400 * 30, approved_by: "admin", workspace: null }
+    ];
+    var sessions = {
+      "job-1": { meta: { job_id: "job-1a2b3c4d5e6f", kind: "studio", provider: "claude", developer: "ellob", name: "Lumini mai calde în Zone3", state: "running", started: now - 240, last_activity: now - 10, pending_approval: false, claims: ["Workspace.Map.Zone3"], workspace: "game:987654", device_id: "ab12cd34ef567890", roblox_user_id: 12345, machine: "PC-ELLOB", remote: false },
+        events: [
+          { seq: 1, type: "prompt", text: "Fă luminile din Zone3 mai calde, fără să schimbi intensitatea." },
+          { seq: 2, type: "text", text: "Am citit Lighting și cele trei surse din Workspace.Map.Zone3. Propun o temperatură de 3200 K pe PointLight-uri și păstrez Brightness." },
+          { seq: 3, type: "tool", tool: "get_studio_state", text: "0,3 s" },
+          { seq: 4, type: "claim", action: "claimed", paths: ["Workspace.Map.Zone3"] },
+          { seq: 5, type: "approval", tool: "multi_edit", approval_id: "a1", arguments: { file_path: "Workspace.Map.Zone3.Lamp1.PointLight", property: "Color", value: "Color3.fromRGB(255, 214, 170)" } },
+          { seq: 6, type: "status", text: "Operație aprobată.", tool: "multi_edit", allowed: true },
+          { seq: 7, type: "tool", tool: "multi_edit", text: "2 editări aplicate" },
+          { seq: 8, type: "text", text: "Am aplicat culoarea pe Lamp1 și Lamp2. Verific și Lamp3." }
+        ] },
+      "job-2": { meta: { job_id: "job-2b3c4d5e6f7a", kind: "terminal", provider: "codex", developer: "ana", name: "Refactor NPC", state: "queued", started: now - 720, last_activity: now - 60, pending_approval: false, claims: ["StarterGui.Shop"], workspace: "game:987654", device_id: "77aa11bb22cc33dd", roblox_user_id: 777, machine: "PC-ANA", remote: true },
+        events: [
+          { seq: 1, type: "prompt", text: "Mută logica NPC-urilor din Workspace.NPC în ServerScriptService.NPC." },
+          { seq: 2, type: "claim", action: "claimed", paths: ["StarterGui.Shop"] },
+          { seq: 3, type: "status", text: "În coadă. Cererile sunt executate FIFO, una câte una." }
+        ] },
+      "job-3": { meta: { job_id: "job-3c4d5e6f7a8b", kind: "studio", provider: "claude", developer: "mihai", name: "Cere aprobare: insert_asset în Arena", state: "waiting_approval", started: now - 95, last_activity: now - 5, pending_approval: true, claims: ["Workspace.Arena"], workspace: "game:987654", device_id: "5e6f7a8b9c0d1e2f", roblox_user_id: 4242, machine: "PC-MIHAI", remote: true },
+        events: [
+          { seq: 1, type: "prompt", text: "Adaugă tribunele din catalog în Arena." },
+          { seq: 2, type: "claim", action: "claimed", paths: ["Workspace.Arena"], reason: "tribune" },
+          { seq: 3, type: "approval", tool: "insert_asset", approval_id: "a2", arguments: { parent_path: "Workspace.Arena", asset_id: 1818, name: "Tribună" } }
+        ] },
+      "job-4": { meta: { job_id: "job-4d5e6f7a8b9c", kind: "terminal", provider: "claude", developer: "ellob", name: "Claude Code · Ball", state: "completed", started: now - 3600, last_activity: now - 1500, pending_approval: false, claims: [], workspace: "game:987654", device_id: "ab12cd34ef567890", roblox_user_id: 12345, machine: "PC-ELLOB", remote: false },
+        events: [
+          { seq: 1, type: "prompt", text: "Curăță scripturile nefolosite din ServerStorage." },
+          { seq: 2, type: "tool", tool: "script_search", text: "2 module fără referințe" },
+          { seq: 3, type: "text", text: "Am șters 4 module fără referințe și am lăsat ServerStorage.Old.Legacy, care este cerut de ServerScriptService.Main." },
+          { seq: 4, type: "claim", action: "released", paths: ["ServerStorage.Old"] },
+          { seq: 5, type: "done", state: "completed" }
+        ] },
+      "job-5": { meta: { job_id: "job-5e6f7a8b9c0d", kind: "terminal", provider: "codex", developer: "mihai", name: "Timer de rundă în Match", state: "running", started: now - 400, last_activity: now - 20, pending_approval: false, claims: ["ServerScriptService.Match"], workspace: "game:1122", device_id: "5e6f7a8b9c0d1e2f", roblox_user_id: 4242, machine: "PC-MIHAI", remote: true },
+        events: [
+          { seq: 1, type: "prompt", text: "Adaugă timer de rundă în Match." },
+          { seq: 2, type: "claim", action: "claimed", paths: ["ServerScriptService.Match"] },
+          { seq: 3, type: "tool", tool: "script_read", text: "ServerScriptService.Match · 212 linii" }
+        ] },
+      "job-6": { meta: { job_id: "job-6f7a8b9c0d1e", kind: "studio", provider: "codex", developer: "ana", name: "Sincronizează iconițele din HUD", state: "failed", started: now - 1800, last_activity: now - 900, pending_approval: false, claims: [], workspace: "game:987654", device_id: "77aa11bb22cc33dd", roblox_user_id: 777, machine: "PC-ANA", remote: true },
+        events: [
+          { seq: 1, type: "prompt", text: "Înlocuiește iconițele din StarterGui.HUD cu setul nou." },
+          { seq: 2, type: "claim", action: "denied", paths: ["StarterGui.HUD"], holder: "ellob" },
+          { seq: 3, type: "error", text: "Calea StarterGui.HUD este ținută de altă sesiune; nu am modificat nimic." },
+          { seq: 4, type: "done", state: "failed" }
+        ] }
+    };
+    var claims = {
+      "game:987654": [
+        { path: "Workspace.Map.Zone3", job_id: "job-1a2b3c4d5e6f", developer: "ellob", since: now - 230, reason: "lumini calde", expires: now + 370, workspace: "game:987654" },
+        { path: "StarterGui.Shop", job_id: "job-2b3c4d5e6f7a", developer: "ana", since: now - 60, reason: "", expires: now + 540, workspace: "game:987654" },
+        { path: "Workspace.Arena", job_id: "job-3c4d5e6f7a8b", developer: "mihai", since: now - 90, reason: "tribune", expires: now + 45, workspace: "game:987654" }
+      ],
+      "game:1122": [
+        { path: "ServerScriptService.Match", job_id: "job-5e6f7a8b9c0d", developer: "mihai", since: now - 390, reason: "timer de rundă", expires: now + 210, workspace: "game:1122" },
+        { path: "@play", job_id: "job-5e6f7a8b9c0d", developer: "mihai", since: now - 120, reason: "test în Play", expires: now + 480, workspace: "game:1122" }
+      ],
+      "place:778899": []
+    };
+    var journal = [];
+    var log = [
+      ["game:987654", "ana", 777, "77aa11bb22cc33dd", "PC-ANA", "job-2b3c4d5e6f7a", "codex", "multi_edit", ["StarterGui.Shop.Frame.BuyButton"], "multi_edit · StarterGui.Shop.Frame.BuyButton (1 editare)", 120],
+      ["game:987654", "ellob", 12345, "ab12cd34ef567890", "PC-ELLOB", "job-1a2b3c4d5e6f", "claude", "execute_luau", ["Workspace.Map.Zone3"], "execute_luau · Workspace.Map.Zone3 (3 PointLight)", 360],
+      ["game:987654", "ellob", 12345, "ab12cd34ef567890", "PC-ELLOB", "job-1a2b3c4d5e6f", "claude", "multi_edit", ["Workspace.Map.Zone3.Lamp1.PointLight", "Workspace.Map.Zone3.Lamp2.PointLight"], "multi_edit · Workspace.Map.Zone3 (2 editări)", 90],
+      ["game:987654", "mihai", 4242, "5e6f7a8b9c0d1e2f", "PC-MIHAI", "job-3c4d5e6f7a8b", "claude", "insert_asset", ["Workspace.Arena"], "insert_asset · Workspace.Arena (Tribună)", 1380],
+      ["game:987654", "ellob", 12345, "ab12cd34ef567890", "PC-ELLOB", "job-4d5e6f7a8b9c", "claude", "multi_edit", ["ServerStorage.Old.Cleanup", "ServerStorage.Old.Legacy"], "multi_edit · ServerStorage.Old (2 ștergeri)", 1800],
+      ["game:987654", "ana", 777, "77aa11bb22cc33dd", "PC-ANA", "job-6f7a8b9c0d1e", "codex", "insert_asset", ["StarterGui.HUD.Score"], "insert_asset · StarterGui.HUD.Score (iconiță)", 2400],
+      ["game:987654", "irina", 3131, "3c4d5e6f7a8b9c0d", "PC-IRINA", "job-7a8b9c0d1e2f", "claude", "generate_texture", ["Workspace.Map.Wall.Decal"], "generate_texture · Workspace.Map.Wall.Decal", 3000],
+      ["game:987654", "ellob", 12345, "ab12cd34ef567890", "PC-ELLOB", "job-4d5e6f7a8b9c", "claude", "script_grep", ["ServerScriptService.Main"], "script_grep · ServerScriptService.Main (7 potriviri)", 4200],
+      ["game:987654", "mihai", 4242, "5e6f7a8b9c0d1e2f", "PC-MIHAI", "job-3c4d5e6f7a8b", "claude", "multi_edit", ["Workspace.Arena.Stand1", "Workspace.Arena.Stand2"], "multi_edit · Workspace.Arena (2 modele)", 5400],
+      ["game:987654", "ana", 777, "77aa11bb22cc33dd", "PC-ANA", "job-2b3c4d5e6f7a", "codex", "execute_luau", ["ServerScriptService.Shop"], "execute_luau · ServerScriptService.Shop (preț nou)", 6600],
+      ["game:1122", "mihai", 4242, "5e6f7a8b9c0d1e2f", "PC-MIHAI", "job-5e6f7a8b9c0d", "codex", "multi_edit", ["ServerScriptService.Match"], "multi_edit · ServerScriptService.Match (timer)", 200],
+      ["game:1122", "irina", 3131, "3c4d5e6f7a8b9c0d", "PC-IRINA", "job-8b9c0d1e2f3a", "claude", "insert_asset", ["Workspace.Arena.Lights"], "insert_asset · Workspace.Arena.Lights (far)", 1500]
+    ];
+    log.forEach(function (row) {
+      journal.push({ seq: 0, time: now - row[10], workspace: row[0], device_id: row[3], developer: row[1], roblox_user_id: row[2], machine: row[4], job_id: row[5], provider: row[6], tool: row[7], paths: row[8], summary: row[9] });
+    });
+    // Hub-ul numerotează intrările în ordinea sosirii: seq crește odată cu timpul.
+    journal.sort(function (a, b) { return a.time - b.time; });
+    journal.forEach(function (row, i) { row.seq = 800 + i; });
+    // Harta proiectului: intrări scrise de mână + serii generate, ca paginarea, filtrele pe clasă și plafonul de 500 să fie reale.
+    var nextId = 0;
+    var entry = function (path, className) { nextId += 1; return { id: nextId, path: path, className: className, name: path.split(".").pop() }; };
+    var makeGroup = function (key, label, handwritten, series) {
+      var rows = handwritten.map(function (e) { return entry(e[0], e[1]); }), by = {}, count = rows.length;
+      rows.forEach(function (e) { by[e.className] = (by[e.className] || 0) + 1; });
+      series.forEach(function (s) {
+        by[s[1]] = (by[s[1]] || 0) + s[2];
+        count += s[2];
+        for (var i = 1; i <= s[2]; i++) if (rows.length < 500) rows.push(entry(s[0] + i, s[1]));
+      });
+      return { key: key, label: label, count: count, by_class: by, entries: rows };
+    };
+    var groups = {};
+    [ makeGroup("graphics", "Grafică", [["Lighting.Atmosphere", "Atmosphere"], ["Lighting.Sky", "Sky"], ["Workspace.Map.Zone3.Lamp1.PointLight", "PointLight"], ["Workspace.Map.Zone3.Lamp2.PointLight", "PointLight"], ["Workspace.Map.Zone3.Lamp3.PointLight", "PointLight"], ["Workspace.Map.Gate.Torch.ParticleEmitter", "ParticleEmitter"], ["Workspace.Map.Gate.Beam", "Beam"], ["Workspace.Map.Wall.Decal", "Decal"]],
+        [["Workspace.Map.Zone4.Lamp", "PointLight", 93], ["Workspace.Map.Zone4.Spot", "SpotLight", 40], ["Workspace.Map.Props.Decal", "Decal", 29], ["Workspace.Map.Props.Emitter", "ParticleEmitter", 21], ["Workspace.Map.Props.Beam", "Beam", 11], ["Workspace.Map.Props.Highlight", "Highlight", 10]]),
+      makeGroup("assets", "Asseturi", [["Workspace.Map", "Folder"], ["Workspace.Map.Zone3", "Model"], ["Workspace.Map.Zone3.Floor", "Part"], ["Workspace.Map.Zone3.Lamp1", "MeshPart"], ["Workspace.Arena", "Model"], ["Workspace.Arena.Stand1", "MeshPart"], ["Workspace.Arena.Stand2", "MeshPart"]],
+        [["Workspace.Map.Props.Block", "Part", 421], ["Workspace.Map.Props.Mesh", "MeshPart", 132], ["Workspace.Map.Props.Group", "Model", 60]]),
+      makeGroup("audio", "Audio", [["SoundService.Music", "SoundGroup"], ["SoundService.Music.Theme", "Sound"], ["Workspace.Map.Gate.Creak", "Sound"]], [["SoundService.Effects.Hit", "Sound", 14]]),
+      makeGroup("ui", "Interfață", [["StarterGui.Shop", "ScreenGui"], ["StarterGui.Shop.Frame", "Frame"], ["StarterGui.Shop.Frame.BuyButton", "TextButton"], ["StarterGui.HUD", "ScreenGui"], ["StarterGui.HUD.Score", "TextLabel"]],
+        [["StarterGui.Shop.Frame.Item", "Frame", 56], ["StarterGui.Shop.Frame.Item.Name", "TextLabel", 39], ["StarterGui.Shop.Frame.Item.Buy", "TextButton", 19], ["StarterGui.Shop.Frame.Layout", "UIListLayout", 12]]),
+      makeGroup("scripts_server", "Scripturi server", [["ServerScriptService.Main", "Script"], ["ServerScriptService.NPC", "Script"], ["ServerScriptService.Shop", "Script"], ["ServerStorage.Old.Legacy", "ModuleScript"]],
+        [["ServerScriptService.Systems.Handler", "Script", 27], ["ServerStorage.Modules.Data", "ModuleScript", 13]]),
+      makeGroup("scripts_client", "Scripturi client", [["StarterPlayer.StarterPlayerScripts.Camera", "LocalScript"], ["StarterGui.HUD.Controller", "LocalScript"]], [["StarterPlayer.StarterPlayerScripts.Input", "LocalScript", 25]]),
+      makeGroup("scripts_shared", "Module partajate", [["ReplicatedStorage.Shared.Config", "ModuleScript"], ["ReplicatedStorage.Shared.Signal", "ModuleScript"]], [["ReplicatedStorage.Shared.Util", "ModuleScript", 17]]),
+      makeGroup("networking", "Rețea", [["ReplicatedStorage.Remotes.Buy", "RemoteEvent"], ["ReplicatedStorage.Remotes.GetScore", "RemoteFunction"]], [["ReplicatedStorage.Remotes.Event", "RemoteEvent", 8], ["ReplicatedStorage.Remotes.Ask", "RemoteFunction", 2]]),
+      makeGroup("data", "Date", [["ServerStorage.Data.Levels", "Configuration"], ["ServerStorage.Data.Levels.Max", "IntValue"]], [["ServerStorage.Data.Levels.Name", "StringValue", 30], ["ServerStorage.Data.Levels.Cost", "IntValue", 19], ["ServerStorage.Data.Tuning", "Configuration", 7]]),
+      makeGroup("physics", "Fizică", [["Workspace.Map.Gate.Hinge", "HingeConstraint"], ["Workspace.Map.Gate.Weld", "WeldConstraint"]], [["Workspace.Map.Props.Weld", "WeldConstraint", 59], ["Workspace.Map.Props.Hinge", "HingeConstraint", 19], ["Workspace.Map.Props.Attachment", "Attachment", 10]]),
+      makeGroup("gameplay", "Gameplay", [["StarterPack.Sword", "Tool"], ["Teams.Red", "Team"], ["Teams.Blue", "Team"], ["Workspace.Spawn", "SpawnLocation"]], [["StarterPack.Tool", "Tool", 11], ["Workspace.Spawns.Point", "SpawnLocation", 4], ["Teams.Extra", "Team", 2]]),
+      makeGroup("settings", "Setări", [["TextChatService.ChatWindowConfiguration", "ChatWindowConfiguration"], ["StarterPlayer.StarterCharacterScripts", "StarterCharacterScripts"], ["Workspace", "Workspace"], ["Lighting", "Lighting"]], [["Players.Settings", "Configuration", 10]]),
+      makeGroup("other", "Altele", [["ReplicatedStorage.Bindables.Tick", "BindableEvent"], ["Workspace.Camera", "Camera"]], [["ReplicatedStorage.Bindables.Signal", "BindableEvent", 39], ["Workspace.Map.Folders.Bin", "Folder", 200]])
+    ].forEach(function (group) { groups[group.key] = group; });
+    var total = 0;
+    Object.keys(groups).forEach(function (key) { total += groups[key].count; });
+    var project = { snapshot_id: "snap-demo-1a2b3c4d", place_id: 1291603, place_name: "Ball", studio_id: "studio-1", count: total, taken: now - 75, received: now - 70, truncated: false,
+                    developer: "ellob", machine: "PC-ELLOB", reported_by: "ab12cd34ef567890", groups: groups, nodes: [] };
+    var summaryOf = function (p) { var g = {}; Object.keys(p.groups).forEach(function (k) { g[k] = p.groups[k].count; }); return { digest: p.snapshot_id, snapshot_id: p.snapshot_id, count: p.count, truncated: p.truncated, groups: g, reported_by: p.reported_by, at: p.received }; };
+    // Arena are doar sumarul (hub repornit): fila Proiect arată contoarele, nu și intrările.
+    var arenaSummary = { digest: "snap-demo-arena", snapshot_id: "snap-demo-arena", count: 486, truncated: false, reported_by: "5e6f7a8b9c0d1e2f", at: now - 5400,
+                         groups: { graphics: 74, assets: 190, audio: 6, ui: 38, scripts_server: 22, scripts_client: 9, scripts_shared: 7, networking: 5, data: 18, physics: 61, gameplay: 12, settings: 9, other: 35 } };
+    demo = { hub_id: "a1b2c3d4e5f60718a1b2c3d4e5f60718", enrollment: "approve", me: devices[0], workspaces: ws, devices: devices, sessions: sessions, claims: claims, journal: journal,
+             projects: { "game:987654": project }, summaries: { "game:987654": summaryOf(project), "game:1122": arenaSummary } };
+    state.codes.admin = "demo";
+  }
+  function demoRequest(method, path, body) {
+    var q = path.indexOf("?") >= 0 ? path.slice(path.indexOf("?") + 1) : "", route = path.replace(/\?.*$/, ""), params = {};
+    q.split("&").forEach(function (kv) { if (!kv) return; var i = kv.indexOf("="); params[decodeURIComponent(kv.slice(0, i < 0 ? kv.length : i))] = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1)); });
+    var now = Date.now() / 1000, d = demo;
+    var online = function (dev) { return dev.status === "approved" && now - dev.last_seen <= ONLINE_SECONDS; };
+    var present = function (key) { return d.devices.filter(function (dev) { return dev.workspace === key && online(dev); }).map(function (dev) { return { device_id: dev.device_id, roblox_user_id: dev.roblox_user_id, roblox_name: dev.roblox_name, machine: dev.machine, last_seen: dev.last_seen, online: true }; }); };
+    var wsRows = function () { return Object.keys(d.workspaces).map(function (key) { var w = d.workspaces[key]; return { key: key, name: w.name, game_id: w.game_id, place_id: w.place_id, creator_id: w.creator_id, creator_type: w.creator_type, last_seen: w.last_seen, members_online: present(key),
+      sessions_active: Object.keys(d.sessions).filter(function (j) { var m = d.sessions[j].meta; return m.workspace === key && ["completed", "failed", "cancelled"].indexOf(m.state) < 0; }).length,
+      claims: (d.claims[key] || []).length, project: d.summaries[key] ? { count: d.summaries[key].count, digest: d.summaries[key].digest, groups: d.summaries[key].groups } : null }; }); };
+    var detail = function (key) { var w = d.workspaces[key]; if (!w) return null; return { workspace: w, members: present(key), sessions: Object.keys(d.sessions).map(function (j) { return d.sessions[j].meta; }).filter(function (m) { return m.workspace === key; }),
+      claims: d.claims[key] || [], journal: d.journal.filter(function (r) { return r.workspace === key; }).slice(-200), project: d.summaries[key] || null }; };
+    var devRow = function (dev) { var row = {}; Object.keys(dev).forEach(function (k) { row[k] = dev[k]; }); row.online = online(dev); return row; };
+    var find = function () { var id = body && body.device_id; return d.devices.filter(function (dev) { return dev.device_id === id; })[0]; };
+    var ok = function (data) { data.ok = true; return Promise.resolve({ status: 200, data: data }); };
+    var fail = function (status, error) { return Promise.resolve({ status: status, data: { ok: false, error: error } }); };
+    var me = d.me; me.last_seen = now;
+    // Dispozitivele de exemplu rămân „online” cât timp pagina e deschisă.
+    d.devices.forEach(function (dev) { if (dev.status === "approved" && dev.device_id !== me.device_id && now - dev.last_seen < 3600) dev.last_seen = now - 2; });
+    switch (route) {
+      case "/hub/status": return ok({ version: "1.0.0", hub_id: d.hub_id, enrollment: d.enrollment, now: now, admin: true, device: { device_id: me.device_id, status: me.status, roblox_user_id: me.roblox_user_id, roblox_name: me.roblox_name, machine: me.machine }, workspaces: Object.keys(d.workspaces).length, members_online: d.devices.filter(online).length });
+      case "/hub/panel-data": {
+        var key = params.workspace || me.workspace;
+        return ok({ me: { device_id: me.device_id, status: me.status, roblox_user_id: me.roblox_user_id, roblox_name: me.roblox_name, machine: me.machine, admin: true },
+                    hub: { hub_id: d.hub_id, version: "1.0.0", enrollment: d.enrollment, now: now }, workspaces: wsRows(), selected: detail(key),
+                    pending_devices: d.devices.filter(function (dev) { return dev.status === "pending"; }).length });
+      }
+      case "/hub/session": {
+        var hit = null;
+        Object.keys(d.sessions).forEach(function (j) { if (d.sessions[j].meta.job_id === params.job) hit = d.sessions[j]; });
+        if (!hit) return fail(404, "Sesiunea nu există.");
+        var after = Number(params.after) || 0, events = hit.events.filter(function (e) { return e.seq > after; });
+        return ok({ meta: hit.meta, events: events, last_seq: hit.events.length ? hit.events[hit.events.length - 1].seq : 0 });
+      }
+      case "/hub/project": return d.workspaces[params.key] ? ok({ project: d.projects[params.key] || null }) : fail(404, "Workspace-ul nu există.");
+      case "/hub/admin/devices": {
+        var order = { pending: 0, approved: 1, revoked: 2 };
+        var rows = d.devices.map(devRow).sort(function (a, b) { return order[a.status] - order[b.status] || (a.roblox_name || a.machine).localeCompare(b.roblox_name || b.machine); });
+        return ok({ devices: rows });
+      }
+      case "/hub/admin/devices/approve": { var a = find(); if (!a) return fail(404, "Dispozitivul nu există."); a.status = "approved"; a.approved_at = now; a.approved_by = "admin"; return ok({ device: devRow(a) }); }
+      case "/hub/admin/devices/revoke": {
+        var r = find(); if (!r) return fail(404, "Dispozitivul nu există.");
+        r.status = "revoked";
+        Object.keys(d.sessions).forEach(function (j) { if (d.sessions[j].meta.device_id === r.device_id) delete d.sessions[j]; });
+        Object.keys(d.claims).forEach(function (k) { d.claims[k] = d.claims[k].filter(function (c) { return c.developer !== (r.roblox_name || r.machine); }); });
+        return ok({ device: devRow(r) });
+      }
+      case "/hub/admin/devices/forget": { var f = find(); if (!f) return fail(404, "Dispozitivul nu există."); d.devices.splice(d.devices.indexOf(f), 1); return ok({}); }
+      case "/hub/admin/enrollment": { if (body.mode !== "approve" && body.mode !== "open") return fail(400, "Modul de înrolare este invalid."); d.enrollment = body.mode; return ok({ enrollment: d.enrollment }); }
+      default: return fail(404, "Ruta nu există.");
+    }
+  }
+
+  // ---------- ecrane ----------
+  function stopAll() { Object.keys(state.timers).forEach(cancel); state.session = null; }
+  function showScreen(name) {
+    state.screen = name;
+    if (name !== "shell") clear($("notices"));   // bannerele shell-ului nu supraviețuiesc ieșirii din el
+    setHidden($("screen-login"), name !== "login");
+    setHidden($("screen-wait"), name !== "wait");
+    setHidden($("screen-shell"), name !== "shell");
+  }
+  function showLogin(message) {
+    showScreen("login");
+    var input = $("login-code");
+    input.value = "";
+    setText($("login-error"), message || "");
+    setAttr(input, "aria-invalid", message ? "true" : "false");
+    try { input.focus(); } catch (e) { /* focusul este opțional */ }
+  }
+  // kind ∈ connecting | down | pending | revoked
+  function showWait(kind, device) {
+    showScreen("wait");
+    state.waitKind = kind;
+    var facts = kind === "pending" || kind === "revoked";
+    var titles = { connecting: "Se conectează la hub…", down: "Hub-ul nu răspunde", pending: "Dispozitivul tău așteaptă aprobarea", revoked: "Dispozitivul a fost revocat" };
+    var texts = { connecting: "Verific codul salvat în acest browser.", down: "Se reîncearcă la 5 s. Verifică adresa hub-ului sau conexiunea.",
+                  pending: "Un admin îl aprobă din fila Dispozitive. Pagina se actualizează singură.", revoked: MSG.revoked };
+    var roles = { connecting: "neutral", down: "danger", pending: "warning", revoked: "danger" };
+    var lines = { connecting: "Se conectează…", down: "Offline · reîncerc la 5 s", pending: "În așteptare · verific la 5 s", revoked: "Revocat · verific la 5 s" };
+    setText($("wait-heading"), titles[kind]);
+    setText($("wait-text"), texts[kind]);
+    setRole($("wait-dot"), roles[kind]);
+    setText($("wait-status"), lines[kind]);
+    setHidden($("wait-facts"), !facts);
+    var dev = obj(device) || {};
+    setText($("wait-device"), shortId(dev.device_id) || "—");
+    setText($("wait-roblox"), num(dev.roblox_user_id) > 0 ? str(dev.roblox_name, "user_" + dev.roblox_user_id) : "Studio");
+    setText($("wait-machine"), str(dev.machine, "—"));
+    setAvatar($("wait-avatar"), dev.roblox_user_id, num(dev.roblox_user_id) > 0 ? dev.roblox_name : "", false);
+  }
+  // Stabilește ecranul după răspunsul /hub/status.
+  function routeStatus(data) {
+    var device = obj(data.device);
+    if (data.admin === true || (device && device.status === "approved")) { enterShell(); return; }
+    if (device && (device.status === "pending" || device.status === "revoked")) {
+      showWait(device.status, device);
+      schedule("wait", pollStatus, WAIT_INTERVAL);
+      return;
+    }
+    enterShell();
+  }
+  function connect() {
+    showWait("connecting");
+    pollStatus();
+  }
+  function pollStatus() {
+    api("GET", "/hub/status").then(routeStatus).catch(function (err) {
+      if (err.status === 401) { clearCodes(); showLogin(MSG.expired); return; }
+      if (handleAccess(err)) return;
+      if (state.waitKind !== "pending" && state.waitKind !== "revoked") showWait("down");
+      schedule("wait", pollStatus, WAIT_INTERVAL);
+    });
+  }
+
+  // ---------- login: dispozitiv (64 hex) întâi, apoi cod de admin ----------
+  $("login-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var input = $("login-code"), button = $("login-submit"), code = (input.value || "").trim();
+    if (code.length < 16) { setText($("login-error"), MSG.refused); setAttr(input, "aria-invalid", "true"); return; }
+    var attempts = HEX64.test(code) ? ["device", "admin"] : ["admin"];
+    button.setAttribute("aria-busy", "true"); setText(button, "Se verifică…");
+    setText($("login-error"), ""); setAttr(input, "aria-invalid", "false");
+    var finish = function (message) {
+      button.removeAttribute("aria-busy"); setText(button, "Intră");
+      if (message) { setText($("login-error"), message); setAttr(input, "aria-invalid", "true"); }
+    };
+    var tryNext = function () {
+      var kind = attempts.shift();
+      if (!kind) { finish(MSG.refused); return; }
+      var codes = { device: kind === "device" ? code.toLowerCase() : state.codes.device, admin: kind === "admin" ? code : state.codes.admin };
+      rawRequest("GET", "/hub/status", undefined, codes).then(function (res) {
+        var data = res.data;
+        if (res.status === 200) { setCode(kind, codes[kind]); input.value = ""; finish(""); routeStatus(data); return; }
+        if (res.status === 403 && kind === "device" && (data.status === "pending" || data.status === "revoked")) {
+          setCode("device", codes.device); input.value = ""; finish("");
+          showWait(data.status, { device_id: data.device_id }); schedule("wait", pollStatus, WAIT_INTERVAL); return;
+        }
+        tryNext();
+      }, function () { finish(MSG.loginDown); });
+    };
+    tryNext();
+  });
+  $("wait-other").addEventListener("click", function () { stopAll(); clearCodes(); showLogin(""); });
+  Array.prototype.forEach.call(document.querySelectorAll(".js-theme"), function (button) { button.addEventListener("click", cycleTheme); });
+
+  // ---------- shell: polling panel-data la 2 s ----------
+  function enterShell() {
+    if (state.screen === "shell") return;
+    stopAll();
+    showScreen("shell");
+    var saved = storeGet(KEYS.workspace);
+    state.workspaceKey = saved || null;
+    state.autoPicked = false;
+    state.panelSignature = null;
+    if (DEMO) notice("demo", "info", MSG.demo, 0, true);
+    pollPanel();
+  }
+  // Semnătura răspunsului fără ora hub-ului (singurul câmp care se schimbă la fiecare poll fără motiv).
+  function panelSignature(data) {
+    try { return JSON.stringify(data, function (key, value) { return key === "now" ? 0 : value; }); }
+    catch (e) { return null; }
+  }
+  function pollPanel() {
+    cancel("panel");
+    state.panelSoon = false;
+    var query = state.workspaceKey ? "?workspace=" + encodeURIComponent(state.workspaceKey) : "";
+    api("GET", "/hub/panel-data" + query).then(function (data) {
+      if (state.hubDown) { state.hubDown = false; dismissNotice("hub-down"); }
+      var hub = obj(data.hub) || {};
+      if (typeof hub.now === "number") state.clockOffset = hub.now - Date.now() / 1000;
+      // Re-randăm doar când răspunsul chiar s-a schimbat; timpii scurși se recalculează separat, la secundă.
+      var signature = panelSignature(data);
+      if (signature !== null && signature === state.panelSignature) return;
+      state.panelSignature = signature;
+      applyPanel(data, hub);
+    }).catch(function (err) {
+      state.panelSignature = null;
+      if (handleAccess(err)) return;
+      if (!state.hubDown) { state.hubDown = true; notice("hub-down", "danger", MSG.hubDown); }
+    }).then(function () { if (state.screen === "shell") schedule("panel", pollPanel, state.panelSoon ? 0 : PANEL_INTERVAL); });
+  }
+  function applyPanel(data, hub) {
+    state.me = obj(data.me) || {};
+    state.hub = hub;
+    state.workspaces = arr(data.workspaces).filter(obj);
+    state.selected = obj(data.selected);
+    state.pendingDevices = num(data.pending_devices);
+    var known = state.workspaces.some(function (w) { return w.key === state.workspaceKey; });
+    if (state.selected && obj(state.selected.workspace)) {
+      var key = str(state.selected.workspace.key);
+      if (key !== state.workspaceKey) { state.workspaceKey = key; storeSet(KEYS.workspace, key); }
+    } else if (state.workspaceKey && !known) {
+      // Cheia reținută nu mai există: revenim la workspace-ul curent al dispozitivului.
+      state.workspaceKey = null; storeDel(KEYS.workspace);
+      if (!state.autoPicked) { state.autoPicked = true; state.panelSoon = true; }
+    } else if (!state.workspaceKey && state.workspaces.length && !state.autoPicked) {
+      state.autoPicked = true;
+      state.workspaceKey = state.workspaces[0].key;
+      state.panelSoon = true;
+    }
+    if (state.projectKey !== state.workspaceKey) {
+      state.project = null; state.projectKey = state.workspaceKey; state.projectDigest = null;
+      state.selectedGroup = null; state.classFilter = null; state.groupShown = PAGE;
+    }
+    renderShell();
+    maybeFetchProject(false);
+    if (state.me.admin && state.tab === "devices") fetchDevices();
+  }
+
+  // ---------- notificări (bannere sub bara de sus) ----------
+  // `seconds` (sau `closable`) = banner temporar, cu „×”. Unul persistent (hub-down) nu primește buton de închidere: ar rămâne
+  // închis definitiv, iar panoul ar afișa mai departe date vechi fără niciun semn (DESIGN.md §7.9).
+  function notice(id, role, text, seconds, closable) {
+    var box = $("notices"), node = box.querySelector('[data-key="' + id + '"]');
+    if (!node) {
+      node = el("div", "banner"); node.dataset.key = id;
+      node.appendChild(el("span", "banner__rail"));
+      node.appendChild(el("span", "banner__text"));
+      if (seconds || closable) {
+        var close = el("button", "button button--ghost button--sm banner__close", "×");
+        close.type = "button"; close.setAttribute("aria-label", "Închide");
+        close.addEventListener("click", function () { dismissNotice(id); });
+        node.appendChild(close);
+      }
+      box.appendChild(node);
+    }
+    cancel("notice-out:" + id);
+    node.classList.remove("banner--leaving");
+    setRole(node, role);
+    setAttr(node, "role", role === "danger" ? "alert" : "status");
+    setText(node.children[1], text);
+    cancel("notice:" + id);
+    if (seconds) schedule("notice:" + id, function () { dismissNotice(id); }, seconds * 1000);
+  }
+  function dismissNotice(id) {
+    cancel("notice:" + id);
+    var node = $("notices").querySelector('[data-key="' + id + '"]');
+    if (!node) return;
+    node.classList.add("banner--leaving");
+    schedule("notice-out:" + id, function () { if (node.parentNode) node.parentNode.removeChild(node); }, 160);
+  }
+
+  // ---------- randare shell ----------
+  // Numele afișat: contul Roblox, altfel `developer` (rândurile de sesiune/jurnal), altfel mașina (contract §1.5).
+  function displayName(row) {
+    if (num(row.roblox_user_id) > 0) return str(row.roblox_name, str(row.developer, "user_" + row.roblox_user_id));
+    return str(row.developer, str(row.machine, "Studio"));
+  }
+  // Numele persoanei când mașina este afișată separat (cardul/rândul de dispozitiv): fără cont Roblox → „Studio”, avatar „?”.
+  function personName(row) { return num(row.roblox_user_id) > 0 ? str(row.roblox_name, "user_" + row.roblox_user_id) : "Studio"; }
+  function personAvatar(node, row, offline) { setAvatar(node, row.roblox_user_id, num(row.roblox_user_id) > 0 ? personName(row) : "", offline); }
+  function isMe(row) { return !!state.me && !!state.me.device_id && row.device_id === state.me.device_id; }
+  function ownerLabel(row) { return isMe(row) ? "tu" : displayName(row); }
+  // Cheia unui autor pentru filtrarea jurnalului: dispozitivul dacă îl știm, altfel numele raportat.
+  function authorKey(row) { return str(row.device_id) || str(row.developer) || str(row.machine) || "—"; }
+  // Numele din spatele unui device_id (raportorul hărții): prezenții workspace-ului, apoi celelalte workspace-uri, apoi lista de dispozitive (admin).
+  function deviceName(deviceId) {
+    var id = str(deviceId);
+    if (!id) return "";
+    var pools = state.selected ? [arr(state.selected.members)] : [];
+    state.workspaces.forEach(function (w) { pools.push(arr(w.members_online)); });
+    if (state.devices) pools.push(state.devices);
+    for (var i = 0; i < pools.length; i++) {
+      for (var j = 0; j < pools[i].length; j++) {
+        var row = obj(pools[i][j]);
+        if (row && row.device_id === id) return displayName(row);
+      }
+    }
+    return "";
+  }
+  function renderShell() {
+    var me = state.me;
+    setAvatar($("me-avatar"), me.roblox_user_id, num(me.roblox_user_id) > 0 ? me.roblox_name : (me.admin && !me.device_id ? "admin" : me.machine), false);
+    setText($("me-name"), num(me.roblox_user_id) > 0 ? str(me.roblox_name) : (me.device_id ? str(me.machine, "Studio") : "admin"));
+    setHidden($("me-admin"), !me.admin);
+    var pending = me.admin ? state.pendingDevices : 0;
+    var badge = $("pending-badge"), tab = $("tab-devices");
+    var pendingText = plural(pending, "dispozitiv în așteptare", "dispozitive în așteptare");
+    setHidden(badge, pending <= 0);
+    setText(badge, isNarrow() ? String(pending) : pending + " în așteptare");
+    setAttr(badge, "aria-label", pendingText + " · deschide fila Dispozitive");
+    setAttr(badge, "title", pendingText);
+    setHidden($("tab-devices-badge"), pending <= 0);
+    setText($("tab-devices-badge"), pending);
+    if (pending > 0) setAttr(tab, "aria-label", "Dispozitive · " + pendingText);
+    else if (tab.hasAttribute("aria-label")) tab.removeAttribute("aria-label");
+    setText($("sidebar-foot"), "hub " + shortId(state.hub.hub_id, 6) + " · v" + str(state.hub.version, "—"));
+    renderWorkspaces();
+    renderHeader();
+    renderTab();
+  }
+  // Doar fila vizibilă se randează; la schimbarea filei se randează din starea deja adusă.
+  function renderTab() {
+    if (state.tab === "project") renderProject();
+    else if (state.tab === "devices") renderDevices();
+    else renderActivity();
+  }
+  function renderWorkspaces() {
+    var list = $("ws-list"), select = $("ws-select"), rows = state.workspaces;
+    setHidden($("ws-empty"), rows.length > 0);
+    reconcile(list, rows, function (w) { return w.key; }, function () {
+      var card = el("button", "card card--clickable"); card.type = "button";
+      card.appendChild(el("span", "card__rail"));
+      card.appendChild(el("span", "card__title"));
+      var line = el("span", "ws-card__line");
+      line.appendChild(el("span", "avatar-row__stack"));
+      line.appendChild(el("span", "ws-card__count"));
+      card.appendChild(line);
+      card.addEventListener("click", function () { selectWorkspace(card.dataset.key); });
+      return card;
+    }, function (card, w) {
+      var selected = w.key === state.workspaceKey, members = arr(w.members_online);
+      setRole(card, selected ? "primary" : "neutral");
+      card.classList.toggle("card--selected", selected);
+      setAttr(card, "aria-pressed", selected ? "true" : "false");
+      setText(card.children[1], str(w.name, w.key));
+      renderStack(card.children[2].children[0], members, 16, 4);
+      var count = card.children[2].children[1];
+      setText(count, members.length ? members.length + " · " + num(w.sessions_active) + " ses" : "nimeni · " + num(w.sessions_active) + " ses");
+      setAttr(count, "title", plural(members.length, "prezent", "prezenți") + ", " + plural(num(w.sessions_active), "sesiune activă", "sesiuni active") + ", " + plural(num(w.claims), "claim", "claims"));
+    });
+    reconcile(select, rows, function (w) { return w.key; }, function () { return el("option"); }, function (option, w) {
+      var members = arr(w.members_online).length;
+      option.value = w.key;
+      setText(option, str(w.name, w.key) + " · " + plural(members, "prezent", "prezenți") + " · " + plural(num(w.sessions_active), "sesiune", "sesiuni"));
+    });
+    if (!rows.length) { clear(select); select.appendChild(el("option", null, "Niciun workspace încă")); select.value = ""; }
+    else if (select.value !== state.workspaceKey && state.workspaceKey) select.value = state.workspaceKey;
+  }
+  function selectWorkspace(key) {
+    if (!key || key === state.workspaceKey) return;
+    state.workspaceKey = key; storeSet(KEYS.workspace, key);
+    state.panelSignature = null;
+    closeSession();
+    state.journalShown = PAGE; state.journalAuthor = null;
+    pollPanel();
+  }
+  $("ws-select").addEventListener("change", function (ev) { selectWorkspace(ev.target.value); });
+  // Ordinea prezenților, aceeași în panou și în plugin (`Theme.avatarRow`, §7.4): eu, apoi cei online, apoi cei mai recenți.
+  function byPresence(a, b) {
+    return (isMe(b) ? 1 : 0) - (isMe(a) ? 1 : 0)
+      || (b.online !== false ? 1 : 0) - (a.online !== false ? 1 : 0)
+      || num(b.last_seen) - num(a.last_seen)
+      || displayName(a).localeCompare(displayName(b));
+  }
+  function renderStack(stack, members, size, max, decorative) {
+    var sorted = members.slice().sort(byPresence);
+    var shown = sorted.slice(0, max), extra = sorted.length - shown.length;
+    var items = shown.map(function (m) { return { kind: "avatar", member: m }; });
+    if (extra > 0) items.push({ kind: "more", n: extra });
+    reconcile(stack, items, function (it) { return it.kind === "more" ? "+more" : it.member.device_id; }, function (it) {
+      if (it.kind === "more") return el("span", "chip chip--count avatar-row__more");
+      return makeAvatar(size, decorative);
+    }, function (node, it) {
+      if (it.kind === "more") { setText(node, "+" + it.n); return; }
+      setAvatar(node, it.member.roblox_user_id, displayName(it.member), it.member.online === false);
+      node.classList.toggle("avatar--ring", size >= 24);
+    });
+  }
+  function renderHeader() {
+    var sel = state.selected, ws = sel ? obj(sel.workspace) : null;
+    if (!ws) {
+      var fallback = state.workspaces.filter(function (w) { return w.key === state.workspaceKey; })[0];
+      setText($("ws-name"), fallback ? str(fallback.name, fallback.key) : (state.workspaces.length ? "—" : "Niciun workspace"));
+      setText($("ws-place"), "");
+      setHidden($("ws-here"), true);
+      return;
+    }
+    setText($("ws-name"), str(ws.name, ws.key));
+    setText($("ws-place"), placeLine(ws));
+    // Prezența proprie se spune separat: „al tău” înseamnă peste tot „locul îți aparține” (Theme.placeLine, §11.3).
+    setHidden($("ws-here"), !arr(sel.members).some(isMe));
+  }
+
+  // Linia mono de sub numele jocului, identică cu `Theme.placeLine` din plugin (§11.3): locul și creatorul lui.
+  function placeLine(ws) {
+    if (!ws || !ws.key || ws.key === "local") return "Fișier nepublicat";
+    var head = num(ws.place_id) > 0 ? "place " + num(ws.place_id) : ws.key;
+    var creator = num(ws.creator_id);
+    if (creator <= 0) return head;
+    var mine = num(obj(state.me).roblox_user_id);
+    if (mine > 0 && creator === mine) return head + " · al tău";
+    return head + (ws.creator_type === "Group" ? " · grup " : " · utilizator ") + creator;
+  }
+
+  // ---------- Activitate ----------
+  function renderActivity() {
+    var sel = state.selected;
+    setHidden($("no-workspace"), !!sel);
+    setHidden($("activity-body"), !sel);
+    if (!sel) return;
+    renderPresent(arr(sel.members).filter(obj));
+    renderSessions(arr(sel.sessions).filter(obj));
+    renderClaims(arr(sel.claims).filter(obj));
+    renderJournal(arr(sel.journal).filter(obj));
+  }
+  function renderPresent(members) {
+    var row = $("present"), empty = $("present-empty");
+    setText($("present-count"), members.length);
+    setHidden(empty, members.length > 0);
+    setHidden(row, members.length === 0);
+    if (!members.length) { setText(empty, "Nimeni prezent acum."); return; }
+    if (!row.firstChild) { row.appendChild(el("span", "avatar-row__stack")); row.appendChild(el("span", "avatar-row__names")); }
+    renderStack(row.children[0], members, 24, 6, true);
+    // Numele, fără contor: numărul stă o singură dată, în chip-ul secțiunii (§7.4).
+    var names = members.slice().sort(byPresence).slice(0, 3)
+      .map(function (m) { return isMe(m) ? "tu" : displayName(m).slice(0, 16); });
+    setText(row.children[1], names.join(", "));
+  }
+  function sessionTitle(meta) {
+    var name = str(meta.name);
+    if (!name) name = str(PROVIDER_LABEL[meta.provider], str(meta.provider, "Sesiune")) + " · " + str(KIND_LABEL[meta.kind], "Sesiune");
+    return name.length > 60 ? name.slice(0, 59) + "…" : name;
+  }
+  function renderSessions(sessions) {
+    var list = $("sessions");
+    var rows = sessions.slice().sort(function (a, b) { return num(b.started) - num(a.started); });
+    // Sesiunea deschisă a ieșit din workspace (închisă și expirată): oprim polling-ul fluxului.
+    if (state.session && !rows.some(function (s) { return s.job_id === state.session.job; })) { cancel("session"); state.session = null; }
+    setText($("sessions-count"), rows.length);
+    setHidden($("sessions-empty"), rows.length > 0);
+    reconcile(list, rows, function (s) { return s.job_id; }, function () {
+      var card = el("div", "card");
+      card.setAttribute("role", "listitem");
+      card.appendChild(el("span", "card__rail"));
+      var toggle = el("button", "card__toggle"); toggle.type = "button"; toggle.setAttribute("aria-expanded", "false");
+      var head = el("div", "card__head"); head.appendChild(el("span", "card__title")); head.appendChild(el("span", "card__meta"));
+      toggle.appendChild(head);
+      var chips = el("div", "card__chips");
+      chips.appendChild(el("span", "chip")); chips.appendChild(el("span", "chip"));
+      var owner = el("span", "card__owner"); owner.appendChild(makeAvatar(16, true)); owner.appendChild(el("span"));
+      chips.appendChild(owner);
+      chips.appendChild(el("span", "muted", "·"));
+      chips.appendChild(el("span", "card__state"));
+      var approval = el("span", "chip"); approval.dataset.role = "warning"; approval.hidden = true; setText(approval, "1 aprobare");
+      chips.appendChild(approval);
+      toggle.appendChild(chips);
+      card.appendChild(toggle);
+      var body = el("div", "card__body"); body.hidden = true;
+      body.appendChild(makeSessionFacts());
+      var flow = el("div", "flow"); flow.setAttribute("aria-live", "polite"); flow.setAttribute("aria-relevant", "additions");
+      body.appendChild(flow);
+      body.appendChild(el("p", "empty", "Sesiunea nu a trimis încă niciun eveniment."));
+      var end = el("div", "flow__end"), close = el("button", "button button--ghost button--sm", "Închide fluxul"); close.type = "button";
+      close.addEventListener("click", function () { closeSession(); toggle.focus(); });
+      end.appendChild(close); body.appendChild(end);
+      card.appendChild(body);
+      toggle.addEventListener("click", function () { if (state.session && state.session.job === card.dataset.key) closeSession(); else openSession(card.dataset.key); });
+      // Escape închide fluxul deschis și readuce focusul pe antetul cardului.
+      card.addEventListener("keydown", function (ev) {
+        if (ev.key !== "Escape" || !state.session || state.session.job !== card.dataset.key) return;
+        closeSession();
+        try { toggle.focus(); } catch (e) { /* focusul este opțional */ }
+      });
+      return card;
+    }, function (card, s) {
+      var stateKey = str(s.state, "running"), open = !!state.session && state.session.job === s.job_id;
+      var role = s.pending_approval ? "warning" : (ROLE_OF_STATE[stateKey] || "neutral");
+      setRole(card, role);
+      card.classList.toggle("card--open", open);
+      var toggle = card.children[1], head = toggle.children[0], chips = toggle.children[1], body = card.children[2];
+      if (!body.id) { body.id = "flow-" + str(s.job_id).replace(/[^A-Za-z0-9_-]/g, ""); setAttr(toggle, "aria-controls", body.id); }
+      setAttr(toggle, "aria-expanded", open ? "true" : "false");
+      setText(head.children[0], sessionTitle(s)); setAttr(head.children[0], "title", str(s.name));
+      setSince(head.children[1], s.started, "de");
+      var provider = str(s.provider);
+      setText(chips.children[0], str(PROVIDER_LABEL[provider], provider || "—")); setRole(chips.children[0], provider === "claude" || provider === "codex" ? provider : "neutral");
+      setText(chips.children[1], str(KIND_LABEL[s.kind], str(s.kind, "—"))); setRole(chips.children[1], "neutral");
+      setAvatar(chips.children[2].children[0], s.roblox_user_id, displayName(s), false);
+      setText(chips.children[2].children[1], ownerLabel(s));
+      setText(chips.children[4], s.pending_approval && stateKey !== "waiting_approval" ? LABEL_OF_STATE.waiting_approval : str(LABEL_OF_STATE[stateKey], stateKey));
+      setHidden(chips.children[5], !s.pending_approval);
+      setHidden(body, !open);
+      if (open) renderSessionBody(body, s);
+    });
+  }
+  // Claims (§11.3): calea, cine o ține (avatar + nume), de când, când expiră și motivul.
+  function renderClaims(claims) {
+    var list = $("claims");
+    var rows = claims.slice().sort(function (a, b) { return num(a.since) - num(b.since); });
+    setText($("claims-count"), rows.length);
+    setHidden($("claims-empty"), rows.length > 0);
+    reconcile(list, rows, function (c) { return c.path + "|" + c.job_id; }, function () {
+      var row = el("div", "row row--mono"); row.setAttribute("role", "listitem");
+      var lead = el("span", "row__lead"); lead.appendChild(makeAvatar(16, true));
+      row.appendChild(lead);
+      var stack = el("span", "row__stack");
+      stack.appendChild(el("span", "row__primary"));
+      var sub = el("span", "row__sub");
+      sub.appendChild(el("span"));                       // cine
+      sub.appendChild(el("span"));                       // de când
+      sub.appendChild(el("span"));                       // motiv
+      stack.appendChild(sub);
+      row.appendChild(stack);
+      row.appendChild(el("span", "row__secondary"));     // expiră în
+      return row;
+    }, function (row, c) {
+      var holder = sessionOwner(c.job_id), who = holder ? ownerLabel(holder) : str(c.developer, "—");
+      setAvatar(row.children[0].children[0], holder ? holder.roblox_user_id : 0, holder ? displayName(holder) : str(c.developer), false);
+      setText(row.children[1].children[0], str(c.path));
+      var sub = row.children[1].children[1];
+      setText(sub.children[0], who + " · ");
+      setSince(sub.children[1], c.since, "de");
+      setText(sub.children[2], str(c.reason) ? " · " + c.reason : "");
+      setSince(row.children[2], c.expires, "expira");
+      setAttr(row, "title", str(c.path) + " · job " + shortId(c.job_id, 12) + (str(c.reason) ? " · " + c.reason : ""));
+    });
+  }
+  function sessionOwner(jobId) {
+    var sessions = state.selected ? arr(state.selected.sessions) : [];
+    for (var i = 0; i < sessions.length; i++) if (sessions[i] && sessions[i].job_id === jobId) return sessions[i];
+    return null;
+  }
+  // Jurnal (§11.3) cu filtrare pe developer: chip-urile de deasupra listei arată cine a modificat și de câte ori.
+  function journalAuthors(rows) {
+    var index = {}, order = [];
+    rows.forEach(function (r) {
+      var key = authorKey(r), entry = index[key];
+      if (!entry) { entry = index[key] = { key: key, label: ownerLabel(r), mine: isMe(r), count: 0 }; order.push(entry); }
+      entry.count += 1;
+    });
+    order.sort(function (a, b) { return (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || b.count - a.count || a.label.localeCompare(b.label); });
+    return order;
+  }
+  function renderJournalFilter(authors) {
+    var box = $("journal-filter");
+    setHidden(box, authors.length < 2);
+    if (authors.length < 2) { clear(box); return; }
+    var items = [{ key: "", label: "Toți", count: authors.reduce(function (n, a) { return n + a.count; }, 0) }].concat(authors);
+    reconcile(box, items, function (a) { return a.key || "@all"; }, function () {
+      var chip = el("button", "chip"); chip.type = "button";
+      chip.addEventListener("click", function () {
+        state.journalAuthor = chip.dataset.key === "@all" ? null : chip.dataset.key;
+        state.journalShown = PAGE;
+        renderActivity();
+      });
+      return chip;
+    }, function (chip, a) {
+      var active = a.key ? state.journalAuthor === a.key : !state.journalAuthor;
+      setText(chip, a.label + " " + fmtInt(a.count));
+      setAttr(chip, "aria-pressed", active ? "true" : "false");
+      setRole(chip, "neutral");
+    });
+  }
+  function renderJournal(journal) {
+    var list = $("journal");
+    var all = journal.slice().sort(function (a, b) { return num(b.seq) - num(a.seq) || num(b.time) - num(a.time); });
+    var authors = journalAuthors(all);
+    if (state.journalAuthor && !authors.some(function (a) { return a.key === state.journalAuthor; })) state.journalAuthor = null;
+    renderJournalFilter(authors);
+    var rows = state.journalAuthor ? all.filter(function (r) { return authorKey(r) === state.journalAuthor; }) : all;
+    var picked = state.journalAuthor ? authors.filter(function (a) { return a.key === state.journalAuthor; })[0] : null;
+    setText($("journal-count"), rows.length);
+    setHidden($("journal-empty"), rows.length > 0);
+    if (!rows.length) setText($("journal-empty"), picked ? "Nicio modificare de la " + picked.label + " în acest workspace." : "Nicio modificare înregistrată încă.");
+    var shown = rows.slice(0, state.journalShown);
+    setHidden($("journal-more"), rows.length <= shown.length);
+    setText($("journal-more"), "Arată mai mult (" + (rows.length - shown.length) + ")");
+    reconcile(list, shown, function (r) { return r.seq + ":" + r.job_id; }, function () {
+      var row = el("div", "row row--two-line"); row.setAttribute("role", "listitem");
+      var lead = el("span", "row__lead"); lead.appendChild(el("span", "mono muted")); lead.appendChild(makeAvatar(16, true));
+      row.appendChild(lead);
+      var stack = el("span", "row__stack"); stack.appendChild(el("span", "row__primary")); stack.appendChild(el("span", "row__sub mono"));
+      row.appendChild(stack);
+      return row;
+    }, function (row, r) {
+      setText(row.children[0].children[0], fmtHM(r.time));
+      setAvatar(row.children[0].children[1], r.roblox_user_id, displayName(r), false);
+      setText(row.children[1].children[0], ownerLabel(r) + " · " + str(r.tool, "—"));
+      setText(row.children[1].children[1], arr(r.paths).map(shortPath).join(", "));
+      setAttr(row, "title", str(r.summary) + (arr(r.paths).length ? "\n" + arr(r.paths).join("\n") : ""));
+    });
+  }
+  $("journal-more").addEventListener("click", function () { state.journalShown += PAGE; renderActivity(); });
+
+  // ---------- fluxul unei sesiuni (GET /hub/session?job=&after= la 2 s) ----------
+  function openSession(job) {
+    closeSession();
+    state.session = { job: job, events: [], after: 0, meta: null, loaded: false, error: null };
+    renderActivity();
+    fetchSession();
+  }
+  function closeSession() {
+    cancel("session");
+    if (!state.session) return;
+    state.session = null;
+    renderActivity();
+  }
+  function fetchSession() {
+    var s = state.session;
+    if (!s) return;
+    api("GET", "/hub/session?job=" + encodeURIComponent(s.job) + "&after=" + s.after).then(function (data) {
+      if (state.session !== s) return;
+      arr(data.events).forEach(function (e) { if (obj(e) && num(e.seq) > s.after) { s.events.push(e); s.after = num(e.seq); } });
+      if (typeof data.last_seq === "number" && data.last_seq > s.after) s.after = data.last_seq;
+      s.meta = obj(data.meta) || s.meta;
+      s.loaded = true; s.error = null;
+      renderActivity();
+    }).catch(function (err) {
+      if (handleAccess(err)) return;
+      if (state.session !== s) return;
+      if (err.status === 404) { closeSession(); notice("session-gone", "warning", "Sesiunea nu mai este în hub: fluxul s-a închis.", 6); return; }
+      s.error = "Fluxul nu s-a putut încărca. Se reîncearcă la 2 s.";
+      renderActivity();
+    }).then(function () { if (state.session === s) schedule("session", fetchSession, SESSION_INTERVAL); });
+  }
+  // Tipurile trimise de daemon (prompt, text, tool, claim, approval, status, error, done) → bule colorate (§6.5).
+  function bubbleOf(e, meta) {
+    var type = str(e.type), kind = "notice", author = "Status", body = str(e.text), role = "neutral";
+    var mine = meta && isMe(meta);
+    if (type === "prompt") { kind = "user"; author = mine ? "Tu" : (meta ? displayName(meta) : "Developer"); }
+    else if (type === "text") { kind = "assistant"; author = str(PROVIDER_LABEL[meta && meta.provider], "Asistent"); role = meta && (meta.provider === "claude" || meta.provider === "codex") ? meta.provider : "neutral"; }
+    else if (type === "tool") { kind = "tool"; author = "Instrument"; role = "info"; body = str(e.tool) ? e.tool + (body ? " · " + body : "") : body; }
+    else if (type === "claim") { kind = "claim"; author = "Coordonare"; role = "warning"; body = str(CLAIM_ACTION[e.action], "Claim") + ": " + arr(e.paths).join(", ") + (str(e.holder) ? " (ținut de " + e.holder + ")" : "") + (body && !arr(e.paths).length ? " " + body : ""); }
+    else if (type === "approval") { kind = "approval"; author = "Propunere"; role = "warning"; body = str(e.tool, "tool") + (obj(e.arguments) ? "\n" + summarizeArguments(e.arguments) : ""); }
+    else if (type === "error") { kind = "error"; author = "Eroare"; role = "danger"; }
+    else if (type === "done") {
+      author = "Final"; role = str(ROLE_OF_STATE[e.state], "neutral");
+      var label = str(LABEL_OF_STATE[e.state], str(e.state));
+      var head = str(DONE_TEXT[e.state], label ? "Sesiunea s-a încheiat (" + label + ")" : "Sesiunea s-a încheiat");
+      body = head + (body ? ": " + body : ".");
+    }
+    else if (type === "status") { body = body || (str(e.tool) ? "Apel: " + e.tool : "Actualizare de stare"); }
+    return { kind: kind, author: author, body: body, role: role };
+  }
+  function summarizeArguments(args) {
+    var out = [];
+    Object.keys(args).slice(0, 6).forEach(function (k) {
+      var v = args[k], text = typeof v === "string" ? v : JSON.stringify(v);
+      if (typeof text !== "string") text = String(v);
+      out.push(k + ": " + (text.length > 160 ? text.slice(0, 159) + "…" : text));
+    });
+    return out.join("\n");
+  }
+  // Detaliile sesiunii deschise: proprietar, început, ultima activitate, claims, job.
+  function makeSessionFacts() {
+    var dl = el("dl", "kv");
+    var add = function (label, cls) { dl.appendChild(el("dt", null, label)); var dd = el("dd", cls); dl.appendChild(dd); return dd; };
+    var owner = add("Proprietar", "card__owner");
+    owner.appendChild(makeAvatar(16, true));
+    owner.appendChild(el("span"));
+    add("Început"); add("Ultima activitate"); add("Claims"); add("Job", "mono");
+    return dl;
+  }
+  function renderSessionFacts(dl, meta) {
+    var owner = dl.children[1];
+    setAvatar(owner.children[0], meta.roblox_user_id, displayName(meta), false);
+    setText(owner.children[1], ownerLabel(meta) + (str(meta.machine) ? " · " + meta.machine : ""));
+    setSince(dl.children[3], meta.started, "de");
+    setSince(dl.children[5], meta.last_activity, "acum");
+    var claims = arr(meta.claims).filter(function (p) { return typeof p === "string"; });
+    setText(dl.children[7], claims.length ? claims.map(shortPath).join(", ") : "fără");
+    setAttr(dl.children[7], "title", claims.join("\n"));
+    setText(dl.children[9], shortId(meta.job_id, 12));
+  }
+  function renderSessionBody(body, row) {
+    var s = state.session, meta = (s && obj(s.meta)) || row;
+    renderSessionFacts(body.children[0], meta);
+    renderFlow(body, meta);
+  }
+  function renderFlow(body, meta) {
+    var s = state.session, flow = body.children[1], empty = body.children[2];
+    var events = s ? s.events : [];
+    setHidden(empty, events.length > 0 && !(s && s.error));
+    if (s && s.error) setText(empty, s.error);
+    else if (!events.length) setText(empty, s && !s.loaded ? "Se încarcă fluxul…" : "Sesiunea nu a trimis încă niciun eveniment.");
+    var wasAtEnd = flow.scrollHeight - flow.scrollTop - flow.clientHeight < 60;
+    reconcile(flow, events, function (e) { return e.seq; }, function () {
+      var node = el("div", "bubble");
+      node.appendChild(el("span", "bubble__rail"));
+      node.appendChild(el("span", "bubble__author"));
+      node.appendChild(el("div", "bubble__body"));
+      return node;
+    }, function (node, e) {
+      var b = bubbleOf(e, s && s.meta ? s.meta : meta);
+      var cls = "bubble bubble--" + b.kind;
+      if (node.className !== cls) node.className = cls;
+      setRole(node, b.role);
+      setHidden(node.children[0], b.kind === "user" || b.kind === "assistant");
+      setText(node.children[1], b.author);
+      setText(node.children[2], b.body);
+    });
+    if (wasAtEnd) flow.scrollTop = flow.scrollHeight;
+  }
+
+  // ---------- Proiect (§11.5): sumarul din panel-data + harta completă din GET /hub/project?key= ----------
+  function currentSummary() { return state.selected ? obj(state.selected.project) : null; }
+  function maybeFetchProject(force) {
+    if (state.screen !== "shell" || !state.workspaceKey || state.projectLoading) return;
+    var summary = currentSummary();
+    if (!summary) { if (state.project) { state.project = null; renderProject(); } return; }
+    var digest = str(summary.digest, str(summary.snapshot_id));
+    var changed = digest !== state.projectDigest, stale = Date.now() - state.projectFetchedAt > PROJECT_INTERVAL;
+    if (!force && !changed && !stale) return;
+    var key = state.workspaceKey;
+    state.projectLoading = true;
+    if (changed) renderProjectMeta(summary);
+    api("GET", "/hub/project?key=" + encodeURIComponent(key)).then(function (data) {
+      state.projectLoading = false; state.projectFetchedAt = Date.now();
+      if (key !== state.workspaceKey) return;
+      state.projectDigest = digest;
+      var project = obj(data.project);
+      state.project = project && obj(project.groups) ? project : null;
+      renderProject();
+    }).catch(function (err) {
+      state.projectLoading = false; state.projectFetchedAt = Date.now();
+      state.panelSignature = null;   // harta lipsește: lăsăm următorul poll să reîncerce
+      if (handleAccess(err)) return;
+      renderProject();
+    });
+  }
+  function projectGroups() { return state.project && obj(state.project.groups) ? obj(state.project.groups) : null; }
+  // Un rând de grupă: contorul vine din sumar (mereu prezent), intrările din harta completă (când a sosit).
+  function groupRows() {
+    var summary = currentSummary(), counts = summary ? (obj(summary.groups) || {}) : {}, full = projectGroups();
+    return GROUP_KEYS.map(function (key) {
+      var c = counts[key], detail = full ? obj(full[key]) : null;
+      return { key: key, label: GROUP_LABELS[key], count: typeof c === "number" ? c : num(detail && detail.count), full: detail };
+    });
+  }
+  function groupEntries(row) { return row && row.full ? arr(row.full.entries).filter(obj) : []; }
+  function classCounts(row) {
+    var by = row && row.full ? obj(row.full.by_class) : null;
+    if (!by) return [];
+    return Object.keys(by).map(function (name) { return { name: name, count: num(by[name]) }; })
+      .sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); });
+  }
+  function renderProject() {
+    var summary = currentSummary();
+    setHidden($("project-empty"), !!summary);
+    setHidden($("project-body"), !summary);
+    renderProjectMeta(summary);
+    if (!summary) return;
+    var rows = groupRows().filter(function (r) { return r.count > 0; });
+    // Fără grupă selectată și fără căutare, detaliul este ascuns: lista ocupă toată lățimea, nu 360 px cu restul gol (§11.5).
+    $("project-body").classList.toggle("project--single", !state.selectedGroup && !state.search.trim());
+    renderGroups(rows);
+    renderGroupDetail(rows);
+  }
+  // Antetul filei: numărul de instanțe, ora scanării, cine a raportat-o și digest-ul inventarului.
+  function renderProjectMeta(summary) {
+    var meta = $("project-meta");
+    setHidden(meta, !summary);
+    if (!meta.firstChild) {
+      meta.appendChild(el("span"));
+      meta.appendChild(el("span", "mono muted"));
+      var cut = el("span", "chip", "trunchiat la 20 000"); cut.dataset.role = "warning"; meta.appendChild(cut);
+      meta.appendChild(el("span", "chip"));
+    }
+    if (!summary) return;
+    var project = state.project, when = project ? num(project.received || project.taken) : num(summary.at);
+    var by = project && str(project.developer) ? project.developer : deviceName(summary.reported_by);
+    var line = "Harta proiectului · " + fmtInt(summary.count) + " instanțe";
+    if (when) line += " · scanată " + fmtHM(when);
+    if (by) line += " de " + by;
+    setText(meta.children[0], line);
+    var digest = str(summary.digest, str(summary.snapshot_id));
+    setText(meta.children[1], digest ? "· inventar " + shortId(digest, 12) : "");
+    setAttr(meta.children[1], "title", digest);
+    setHidden(meta.children[2], !(summary.truncated || (project && project.truncated)));
+    var chip = meta.children[3];
+    if (!project && state.projectLoading) { setHidden(chip, false); setRole(chip, "neutral"); setText(chip, "se încarcă harta…"); }
+    else if (!project) { setHidden(chip, false); setRole(chip, "info"); setText(chip, "doar sumarul"); }
+    else setHidden(chip, true);
+  }
+  function renderGroups(rows) {
+    setText($("groups-count"), rows.length);
+    setHidden($("groups-empty"), rows.length > 0);
+    var max = Math.max.apply(null, rows.map(function (r) { return r.count; }).concat([1]));
+    reconcile($("groups"), rows, function (r) { return r.key; }, function () {
+      var row = el("button", "row row--clickable group-row"); row.type = "button";
+      row.appendChild(el("span", "row__primary"));
+      row.appendChild(el("span", "row__secondary"));
+      row.appendChild(el("span", "bar"));
+      row.addEventListener("click", function () {
+        state.selectedGroup = state.selectedGroup === row.dataset.key ? null : row.dataset.key;
+        state.classFilter = null;
+        state.groupShown = PAGE;
+        renderProject();
+      });
+      return row;
+    }, function (row, r) {
+      var selected = r.key === state.selectedGroup;
+      row.classList.toggle("row--selected", selected);
+      setAttr(row, "aria-pressed", selected ? "true" : "false");
+      setText(row.children[0], r.label);
+      setText(row.children[1], fmtInt(r.count));
+      setAttr(row, "title", r.label + " · " + plural(r.count, "instanță", "instanțe"));
+      var ratio = (Math.round(r.count / max * 1000) / 1000).toFixed(3);
+      if (row.children[2].style.getPropertyValue("--bar") !== ratio) row.children[2].style.setProperty("--bar", ratio);
+    });
+  }
+  // Filtrele pe clasă ale grupei selectate (chip-uri apăsabile, §11.5).
+  function renderClassChips(group) {
+    var box = $("group-chips"), classes = group ? classCounts(group).slice(0, 12) : [];
+    setHidden(box, classes.length < 2);
+    if (classes.length < 2) { clear(box); return; }
+    var items = [{ name: "", label: "Toate", count: group.count }].concat(classes.map(function (c) { return { name: c.name, label: c.name, count: c.count }; }));
+    reconcile(box, items, function (c) { return c.name || "@all"; }, function () {
+      var chip = el("button", "chip"); chip.type = "button";
+      chip.addEventListener("click", function () {
+        state.classFilter = chip.dataset.key === "@all" ? null : chip.dataset.key;
+        state.groupShown = PAGE;
+        renderProject();
+      });
+      return chip;
+    }, function (chip, c) {
+      var active = c.name ? state.classFilter === c.name : !state.classFilter;
+      setText(chip, c.label + " " + fmtInt(c.count));
+      setAttr(chip, "aria-pressed", active ? "true" : "false");
+      setRole(chip, "neutral");
+    });
+  }
+  function groupSubtitle(group, loaded, matches, filtered) {
+    if (!group) return "Rezultate din toate grupele încărcate; alege o grupă pentru lista completă.";
+    if (!group.full) return "";  // starea goală de dedesubt explică deja lipsa intrărilor
+    var text = loaded < group.count ? "Primele " + fmtInt(loaded) + " intrări din " + fmtInt(group.count) + "." : fmtInt(loaded) + " " + (loaded === 1 ? "intrare" : "intrări") + ".";
+    if (filtered) text += " " + fmtInt(matches) + " " + (matches === 1 ? "potrivire" : "potriviri") + ".";
+    return text;
+  }
+  function renderGroupDetail(rows) {
+    var detail = $("group-detail"), query = state.search.trim().toLowerCase();
+    var group = rows.filter(function (r) { return r.key === state.selectedGroup; })[0];
+    // Grupa reținută a dispărut din scanarea nouă (contor 0): revenim la lista de grupe.
+    if (!group) { state.selectedGroup = null; state.classFilter = null; }
+    if (!group && !query) { setHidden(detail, true); return; }
+    setHidden(detail, false);
+    if (group && state.classFilter && !classCounts(group).some(function (c) { return c.name === state.classFilter; })) state.classFilter = null;
+    renderClassChips(group);
+    var entries = [], title;
+    if (group) {
+      entries = groupEntries(group).map(function (e) { return { id: group.key + ":" + e.id, path: e.path, className: e.className, name: e.name }; });
+      title = group.label;
+    } else {
+      rows.forEach(function (r) {
+        groupEntries(r).forEach(function (e) { entries.push({ id: r.key + ":" + e.id, path: e.path, className: e.className, name: e.name, group: r.label }); });
+      });
+      title = "Căutare";
+    }
+    var loaded = entries.length;
+    if (state.classFilter) entries = entries.filter(function (e) { return str(e.className) === state.classFilter; });
+    if (query) entries = entries.filter(function (e) { return (str(e.path) + " " + str(e.className) + " " + str(e.name)).toLowerCase().indexOf(query) >= 0; });
+    var filtered = !!query || !!state.classFilter;
+    setText($("group-title"), title);
+    setText($("group-count"), fmtInt(group ? group.count : entries.length));
+    setText($("group-classes"), groupSubtitle(group, loaded, entries.length, filtered));
+    var empty = $("group-empty");
+    setHidden(empty, entries.length > 0);
+    if (!entries.length) {
+      if (query) setText(empty, "Nicio intrare pentru „" + state.search.trim() + "”. Încearcă numele clasei sau o parte din cale.");
+      else if (state.classFilter) setText(empty, "Nicio intrare de clasa " + state.classFilter + " în această grupă.");
+      else if (group && group.full) setText(empty, "Grupa nu are intrări în această scanare.");
+      else if (state.projectLoading) setText(empty, "Se încarcă harta completă…");
+      else setText(empty, "Harta completă nu este disponibilă încă; hub-ul are doar sumarul.");
+    }
+    var clearButton = $("group-clear");
+    setHidden(clearButton, !filtered);
+    setText(clearButton, query ? "Șterge căutarea" : "Arată toate clasele");
+    var shown = entries.slice(0, state.groupShown);
+    setHidden($("group-more"), entries.length <= shown.length);
+    setText($("group-more"), "Arată mai mult (" + fmtInt(entries.length - shown.length) + ")");
+    reconcile($("group-entries"), shown, function (e) { return e.id !== undefined ? e.id : e.path; }, function () {
+      var row = el("div", "row row--mono"); row.setAttribute("role", "listitem");
+      row.appendChild(el("span", "row__primary"));
+      row.appendChild(el("span", "row__secondary"));
+      var chip = el("span", "chip"); chip.dataset.role = "warning"; chip.hidden = true; row.appendChild(chip);
+      return row;
+    }, function (row, e) {
+      setText(row.children[0], str(e.path));
+      setAttr(row.children[0], "title", str(e.path));
+      setText(row.children[1], (e.group ? e.group + " · " : "") + str(e.className));
+      var claim = claimFor(e.path), holder = claim ? sessionOwner(claim.job_id) : null;
+      setHidden(row.children[2], !claim);
+      if (claim) {
+        setText(row.children[2], holder ? ownerLabel(holder) : str(claim.developer, "claim"));
+        setAttr(row.children[2], "title", "Revendicat prin " + str(claim.path) + (str(claim.reason) ? " · " + claim.reason : ""));
+      }
+    });
+  }
+  $("project-search").addEventListener("input", function (ev) { state.search = ev.target.value || ""; state.groupShown = PAGE; renderProject(); });
+  $("group-clear").addEventListener("click", function () {
+    state.search = ""; state.classFilter = null; state.groupShown = PAGE;
+    $("project-search").value = "";
+    renderProject();
+    try { $("project-search").focus(); } catch (e) { /* focusul este opțional */ }
+  });
+  $("group-more").addEventListener("click", function () { state.groupShown += PAGE; renderProject(); });
+
+  // ---------- Dispozitive ----------
+  function fetchDevices() {
+    if (state.devicesLoading || !state.me || !state.me.admin) return;
+    state.devicesLoading = true;
+    api("GET", "/hub/admin/devices").then(function (data) {
+      state.devicesLoading = false;
+      state.devices = arr(data.devices).filter(obj);
+      renderDevices();
+    }).catch(function (err) {
+      state.devicesLoading = false;
+      if (handleAccess(err)) return;
+      notice("devices-error", "danger", "Lista de dispozitive nu s-a putut încărca: " + str(err.message, "eroare") + ". Se reîncearcă.", 6);
+    });
+  }
+  function renderDevices() {
+    var me = state.me || {}, admin = !!me.admin;
+    setHidden($("devices-admin"), !admin);
+    setHidden($("devices-own"), admin);
+    if (!admin) { renderOwnDevice(me); return; }
+    var mode = str(state.hub && state.hub.enrollment, "approve");
+    Array.prototype.forEach.call($("enrollment").children, function (b) { setAttr(b, "aria-checked", b.dataset.mode === mode ? "true" : "false"); setAttr(b, "tabindex", b.dataset.mode === mode ? "0" : "-1"); });
+    setText($("enrollment-hint"), mode === "open" ? "Deschisă: orice dispozitiv nou este aprobat automat." : "Cu aprobare: dispozitivele noi așteaptă un click aici.");
+    var devices = state.devices;
+    if (!devices) { setText($("pending-count"), state.pendingDevices); setText($("devices-count"), "…"); return; }
+    var pending = devices.filter(function (d) { return d.status === "pending"; });
+    setText($("pending-count"), pending.length);
+    setHidden($("pending-empty"), pending.length > 0);
+    reconcile($("pending-list"), pending, function (d) { return d.device_id; }, function () {
+      var card = el("div", "card"); card.dataset.role = "warning"; card.setAttribute("role", "listitem");
+      card.appendChild(el("span", "card__rail"));
+      var head = el("div", "card__head");
+      var who = el("span", "card__owner"); who.appendChild(makeAvatar(24, true)); who.appendChild(el("span", "card__title"));
+      head.appendChild(who); head.appendChild(el("span", "card__meta"));
+      card.appendChild(head);
+      card.appendChild(el("div", "small muted mono"));
+      var actions = el("div", "card__actions");
+      var approve = el("button", "button button--primary button--sm", "Aprobă"); approve.type = "button";
+      var revoke = el("button", "button button--secondary button--sm", "Revocă"); revoke.type = "button";
+      approve.addEventListener("click", function () { deviceAction("approve", card.dataset.key, approve, "Se aprobă…"); });
+      revoke.addEventListener("click", function () { deviceAction("revoke", card.dataset.key, revoke, "Se revocă…"); });
+      actions.appendChild(approve); actions.appendChild(revoke);
+      card.appendChild(actions);
+      return card;
+    }, function (card, d) {
+      var head = card.children[1];
+      personAvatar(head.children[0].children[0], d, false);
+      setText(head.children[0].children[1], personName(d) + " · " + str(d.machine, "—"));
+      setSince(head.children[1], d.first_seen, "acum");
+      setText(card.children[2], shortId(d.device_id) + " · " + str(d.version, "—") + " · " + workspaceName(d.workspace));
+    });
+    setText($("devices-count"), devices.length);
+    setHidden($("devices-empty"), devices.length > 0);
+    reconcile($("devices-list"), devices, function (d) { return d.device_id; }, function () {
+      var row = el("div", "row row--two-line"); row.setAttribute("role", "listitem");
+      var lead = el("span", "row__lead"); lead.appendChild(el("span", "dot")); lead.appendChild(makeAvatar(16, true));
+      row.appendChild(lead);
+      var stack = el("span", "row__stack"); stack.appendChild(el("span", "row__primary")); stack.appendChild(el("span", "row__sub"));
+      row.appendChild(stack);
+      row.appendChild(el("span", "chip"));
+      row.appendChild(el("span", "row__action"));
+      row.appendChild(el("span", "row__confirm"));
+      return row;
+    }, function (row, d) {
+      var online = d.online === true, status = str(d.status, "pending");
+      setRole(row.children[0].children[0], online ? "primary" : "neutral");
+      setAttr(row.children[0].children[0], "title", online ? "Online" : "Offline");
+      personAvatar(row.children[0].children[1], d, !online);
+      setText(row.children[1].children[0], personName(d) + " · " + str(d.machine, "—") + (isMe(d) ? " (tu)" : ""));
+      var sub = row.children[1].children[1];
+      clear(sub);
+      sub.appendChild(el("span", "mono", shortId(d.device_id)));
+      sub.appendChild(document.createTextNode(" · " + str(d.version, "—") + " · " + workspaceName(d.workspace) + " · "));
+      var since = el("span"); setSince(since, d.last_seen, "acum"); sub.appendChild(since);
+      setText(row.children[2], str(LABEL_OF_DEVICE[status], status)); setRole(row.children[2], ROLE_OF_DEVICE[status] || "neutral");
+      renderDeviceActions(row.children[3], row.children[4], d);
+    });
+  }
+  function workspaceName(key) {
+    if (!key) return "fără workspace";
+    var w = state.workspaces.filter(function (x) { return x.key === key; })[0];
+    return w ? str(w.name, key) : key;
+  }
+  function renderDeviceActions(box, confirmBox, d) {
+    var wanted = [];
+    if (d.status === "approved" && !isMe(d)) wanted.push("revoke");
+    if (d.status === "pending" || d.status === "revoked") wanted.push("approve");
+    if (d.status === "revoked") wanted.push("forget");
+    var labels = { revoke: "Revocă", approve: "Aprobă", forget: "Uită" }, busy = { revoke: "Se revocă…", approve: "Se aprobă…", forget: "Se uită…" };
+    reconcile(box, wanted, function (k) { return k; }, function (k) {
+      var b = el("button", "button button--sm " + (k === "approve" ? "button--ghost" : "button--danger"), labels[k]); b.type = "button";
+      b.addEventListener("click", function () {
+        if (k === "approve") { deviceAction("approve", d.device_id, b, busy[k]); return; }
+        state.confirm = { id: d.device_id, action: k }; renderDevices();
+        // Focusul se mută o singură dată, la deschiderea confirmării (nu la randare): altfel ar sări înapoi la fiecare poll.
+        var first = confirmBox.querySelector("button");
+        if (first) { try { first.focus(); } catch (e) { /* focusul este opțional */ } }
+      });
+      return b;
+    }, function () {});
+    var confirm = state.confirm && state.confirm.id === d.device_id ? state.confirm : null;
+    var key = confirm ? confirm.action + ":" + d.device_id : "";
+    setHidden(confirmBox, !confirm);
+    // Randarea se repetă la fiecare sync: reconstruim confirmarea doar când se schimbă (§13 — DOM-ul se reconciliază).
+    if (confirmBox.dataset.key === key) return;
+    confirmBox.dataset.key = key;
+    clear(confirmBox);
+    if (!confirm) return;
+    var text = confirm.action === "revoke" ? "Revoci accesul lui " + displayName(d) + "? Sesiunile și claims-urile lui se eliberează."
+                                           : "Uiți dispozitivul " + shortId(d.device_id) + "? Va putea reveni ca dispozitiv nou, în așteptare.";
+    confirmBox.appendChild(el("span", null, text));
+    var go = el("button", "button button--danger button--sm", labels[confirm.action]); go.type = "button";
+    go.addEventListener("click", function () { deviceAction(confirm.action, d.device_id, go, busy[confirm.action]); });
+    var back = el("button", "button button--secondary button--sm", "Înapoi"); back.type = "button";
+    back.addEventListener("click", function () { state.confirm = null; renderDevices(); });
+    confirmBox.appendChild(go); confirmBox.appendChild(back);
+  }
+  function deviceAction(action, deviceId, button, busyText) {
+    var label = button.textContent;
+    button.setAttribute("aria-busy", "true"); setText(button, busyText);
+    api("POST", "/hub/admin/devices/" + action, { device_id: deviceId }).then(function () {
+      state.confirm = null;
+      fetchDevices();
+      var title = $("devices-title");
+      try { title.setAttribute("tabindex", "-1"); title.focus(); } catch (e) { /* focusul este opțional */ }
+    }).catch(function (err) {
+      if (handleAccess(err)) return;
+      notice("admin-error", "danger", "Nu s-a putut aplica: " + str(err.message, "eroare") + ". Încearcă din nou.", 6);
+    }).then(function () { if (button.isConnected) { button.removeAttribute("aria-busy"); setText(button, label); } });
+  }
+  function renderOwnDevice(me) {
+    var list = $("own-device"), rows = me.device_id ? [me] : [];
+    reconcile(list, rows, function (d) { return d.device_id; }, function () {
+      var row = el("div", "row row--two-line"); row.setAttribute("role", "listitem");
+      var lead = el("span", "row__lead"); lead.appendChild(el("span", "dot")); lead.appendChild(makeAvatar(16, true));
+      row.appendChild(lead);
+      var stack = el("span", "row__stack"); stack.appendChild(el("span", "row__primary")); stack.appendChild(el("span", "row__sub mono"));
+      row.appendChild(stack);
+      row.appendChild(el("span", "chip"));
+      return row;
+    }, function (row, d) {
+      var status = str(d.status, "approved");
+      setRole(row.children[0].children[0], "primary");
+      personAvatar(row.children[0].children[1], d, false);
+      setText(row.children[1].children[0], personName(d) + " · " + str(d.machine, "—"));
+      setText(row.children[1].children[1], shortId(d.device_id));
+      setText(row.children[2], str(LABEL_OF_DEVICE[status], status)); setRole(row.children[2], ROLE_OF_DEVICE[status] || "neutral");
+    });
+  }
+  $("enrollment").addEventListener("click", function (ev) {
+    var b = ev.target.closest(".segmented__item");
+    if (!b || b.getAttribute("aria-checked") === "true") return;
+    setEnrollment(b.dataset.mode);
+  });
+  // Radiogroup: săgețile comută modul (două opțiuni), Home/End îl duc la capete.
+  $("enrollment").addEventListener("keydown", function (ev) {
+    var current = str(state.hub && state.hub.enrollment, "approve"), next = null;
+    if (ev.key === "ArrowLeft" || ev.key === "ArrowUp" || ev.key === "ArrowRight" || ev.key === "ArrowDown") next = current === "open" ? "approve" : "open";
+    else if (ev.key === "Home") next = "approve";
+    else if (ev.key === "End") next = "open";
+    if (!next) return;
+    ev.preventDefault();
+    if (next !== current) setEnrollment(next);
+  });
+  function setEnrollment(mode) {
+    api("POST", "/hub/admin/enrollment", { mode: mode }).then(function (data) {
+      if (state.hub) state.hub.enrollment = str(data.enrollment, mode);
+      renderDevices();
+      var b = $("enrollment").querySelector('[data-mode="' + mode + '"]');
+      if (b) b.focus();
+    }).catch(function (err) {
+      if (handleAccess(err)) return;
+      notice("admin-error", "danger", "Nu s-a putut aplica: " + str(err.message, "eroare") + ". Încearcă din nou.", 6);
+    });
+  }
+  $("pending-badge").addEventListener("click", function () { selectTab("devices"); });
+
+  // ---------- file (tablist cu săgeți, Home/End) ----------
+  var TABS = ["activity", "project", "devices"];
+  function selectTab(name, focus) {
+    state.tab = name;
+    TABS.forEach(function (t) {
+      var tab = $("tab-" + t), panel = $("panel-" + t), active = t === name;
+      setAttr(tab, "aria-selected", active ? "true" : "false");
+      setAttr(tab, "tabindex", active ? "0" : "-1");
+      setHidden(panel, !active);
+      if (active && focus) tab.focus();
+    });
+    if (state.me) renderTab();
+    if (name === "devices" && state.me && state.me.admin) fetchDevices();
+  }
+  TABS.forEach(function (t) {
+    var tab = $("tab-" + t);
+    tab.addEventListener("click", function () { selectTab(t); });
+    tab.addEventListener("keydown", function (ev) {
+      var i = TABS.indexOf(t), next = null;
+      if (ev.key === "ArrowRight") next = TABS[(i + 1) % TABS.length];
+      else if (ev.key === "ArrowLeft") next = TABS[(i + TABS.length - 1) % TABS.length];
+      else if (ev.key === "Home") next = TABS[0];
+      else if (ev.key === "End") next = TABS[TABS.length - 1];
+      if (next) { ev.preventDefault(); selectTab(next, true); }
+    });
+  });
+
+  // Trecerea peste pragul de 560 px schimbă etichetele scurtate din bara de sus.
+  function onWidthChange() {
+    applyTheme();
+    if (state.screen === "shell" && state.me) renderShell();
+  }
+  if (NARROW) {
+    if (NARROW.addEventListener) NARROW.addEventListener("change", onWidthChange);
+    else if (NARROW.addListener) NARROW.addListener(onWidthChange);
+  }
+
+  // ---------- pornire ----------
+  setInterval(tickSince, 1000);
+  function boot() {
+    applyTheme();
+    var m = /(?:^#|[#&])device=([0-9a-fA-F]{64})(?:&|$)/.exec(location.hash || "");
+    if (m) {
+      storeSet(KEYS.device, m[1].toLowerCase());
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    loadCodes();
+    if (DEMO) { demoInit(); document.title = "Studio Harness — Panou (date de exemplu)"; enterShell(); return; }
+    if (!state.codes.device && !state.codes.admin) { showLogin(""); return; }
+    connect();
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

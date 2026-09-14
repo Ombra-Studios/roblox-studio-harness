@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "studio_hub": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-I", "${CLAUDE_PLUGIN_ROOT}/scripts/harness_mcp.py"],
+      "env": { "STUDIO_HARNESS_PROVIDER": "claude" }
+    }
+  }
+}

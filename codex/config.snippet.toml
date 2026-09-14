@@ -1,0 +1,7 @@
+# Fragment pentru %USERPROFILE%\.codex\config.toml. Install-Codex-Config.cmd îl adaugă cu calea absolută corectă.
+notify = ["python", "-I", "C:\cale\catre\roblox-studio-harness\scripts\harness_hook.py", "--codex"]
+
+[mcp_servers.studio_hub]
+command = "python"
+args = ["-I", "C:\cale\catre\roblox-studio-harness\scripts\harness_mcp.py"]
+env = { STUDIO_HARNESS_PROVIDER = "codex" }

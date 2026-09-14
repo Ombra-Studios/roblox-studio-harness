@@ -1,0 +1,38 @@
+[Unit]
+Description=Studio Harness hub central (dispozitive aprobate de admin, workspace-uri, claims, jurnal, panou web)
+Documentation=file:///var/lib/studio-harness/app/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=studio-harness
+Group=studio-harness
+WorkingDirectory=/var/lib/studio-harness/app
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONIOENCODING=utf-8
+# Codul de administrator se creează la prima pornire în /var/lib/studio-harness/hub-admin-token. Pentru un cod ales de tine
+# (16-512 de caractere, fără spații) adaugă: Environment=STUDIO_HARNESS_ADMIN_TOKEN=<cod> — niciodată în repo sau în pachete.
+# --listen 127.0.0.1: hub-ul este expus doar prin reverse proxy-ul HTTPS (Caddy/nginx). Pentru LAN fără proxy: 0.0.0.0.
+ExecStart=/usr/bin/python3 /var/lib/studio-harness/app/team_hub.py --listen 127.0.0.1 --port 34880 --state-dir /var/lib/studio-harness
+Restart=always
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# Izolare
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadWritePaths=/var/lib/studio-harness
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+{
+  "description": "Studio Harness: trimite promptul, textul asistentului și închiderea sesiunii către daemon-ul local, ca sesiunea din terminal să apară live în Studio.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "python -I \"${CLAUDE_PLUGIN_ROOT}/scripts/harness_hook.py\"", "timeout": 10 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "python -I \"${CLAUDE_PLUGIN_ROOT}/scripts/harness_hook.py\"", "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "python -I \"${CLAUDE_PLUGIN_ROOT}/scripts/harness_hook.py\"", "timeout": 10 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "python -I \"${CLAUDE_PLUGIN_ROOT}/scripts/harness_hook.py\"", "timeout": 10 } ] }
+    ]
+  }
+}

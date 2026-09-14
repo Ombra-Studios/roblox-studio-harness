@@ -1,0 +1,14 @@
+# Convenția din design/V1-BRIEF.md §9: fișiere LF, UTF-8 (`.ps1` păstrează BOM-ul, dar tot cu LF).
+# Normalizarea se face la `git add`, ca `deploy/ubuntu/install.sh` să ajungă pe Linux fără `^M` pe linia shebang.
+* text=auto eol=lf
+
+# Pachetul pluginului este XML, dar îl publicăm octet cu octet: `build_studio_plugin.py` îl scrie deja cu LF,
+# iar sha256-ul din `releases/manifest.json` trebuie să rămână valabil după clonare, pe orice sistem.
+*.rbxmx -text
+
+# Binare: fără normalizare, fără diff textual.
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.exe binary

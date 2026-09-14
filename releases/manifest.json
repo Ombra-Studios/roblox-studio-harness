@@ -1,0 +1,24 @@
+{
+ "version": "1.0.0",
+ "published": "2026-09-14T17:02:50",
+ "notes": "Studio Harness 1.0.0",
+ "loader_version": "1.1.0",
+ "files": {
+  "plugin": {
+   "url": "https://huggingface.co/spaces/OWNER/studio-harness/resolve/main/releases/roblox-studio-harness-1.0.0.zip",
+   "sha256": "10659423fa93030741a1d8f30bf122ac584b7a4f6fb88d09f3f373be9d9002e5",
+   "size": 398551
+  },
+  "hub": {
+   "url": "https://huggingface.co/spaces/OWNER/studio-harness/resolve/main/releases/studio-harness-hub-1.0.0-ubuntu.zip",
+   "sha256": "23f26349d4ba8dcd1fb9b47216f286b7b6a2a4b4cbf5827a859333c80e82af4e",
+   "size": 97624
+  },
+  "studio_app": {
+   "url": "https://huggingface.co/spaces/OWNER/studio-harness/resolve/main/releases/studio-harness-app-1.0.0.zip",
+   "sha256": "687d3e61cae771c224d7f58bee03a7ad13bd716fc0c906deed4664d03c3fc2e2",
+   "size": 69899
+  }
+ },
+ "bundle_revision": "8cae2d4893d715ff"
+}
