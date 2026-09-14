@@ -1,6 +1,7 @@
 """Concurență deterministă pentru coada Mod S; numai Events și provideri falși. Fără hub (`hub_url=None`), fără rețea, fără %LOCALAPPDATA%."""
 
 import copy
+import json
 import os
 import sys
 import tempfile
@@ -541,6 +542,89 @@ class QueueTests(unittest.TestCase):
         # Rândurile trimise hub-ului poartă cheia jobului (nu se atinge MCP-ul nativ: ControlledNative nu listează instanțe).
         rows = {row["job_id"]: row for row in self.bridge.hub_payload({})}
         self.assertEqual((rows[first.id]["workspace"], rows[second.id]["workspace"], rows[second.id]["state"]), ("game:9", "game:9", "queued"))
+
+
+class AutoApproveTests(unittest.TestCase):
+    """1.0: setarea de aprobare („ask”, „edits”, „all”) din plugin, păstrată în config.json.
+
+    Clasă de sine stătătoare: moștenirea din `QueueTests` ar fi rulat a doua oară toată suita cozii."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=os.environ.get("HARNESS_TEST_TMP"))
+        self.providers = ControlledProviders()
+        self.native = ControlledNative()
+        self.bridge = Bridge(self.providers, Path(self.temp.name) / "runtime", self.native, "approve-ui-token-0123456789",
+                             developer="tester", state_directory=Path(self.temp.name) / "state", hub_url=None)
+
+    def tearDown(self):
+        self.bridge.close()
+        self.temp.cleanup()
+
+    def submit(self, text="test", **extra):
+        return self.bridge.start_chat({"provider": "claude", "prompt": text, "studio_id": "studio-1", **extra})
+
+    def luau(self, job, code):
+        _, conflicts = self.bridge.claims.claim(job.id, job.developer, ["Workspace.Map.Zone3"])
+        self.assertEqual(conflicts, [])
+        return self.bridge.agent_call(job, "execute_luau", {"code": code, "scope": ["Workspace.Map.Zone3"]})
+
+    def generate(self, job):
+        """Un tool de generare: consumă credite Roblox, deci rămâne în afara lui „edits”."""
+        tools = self.native.list_tools() + [{"name": "generate_material", "inputSchema": {"type": "object", "properties": {}},
+                                             "description": "Generare"}]
+        self.native.list_tools = lambda: tools
+        return self.bridge.agent_call(job, "generate_material", {"prompt": "piatră", "path": "Workspace.Map.Zone3"})
+
+    def test_default_asks_every_time(self):
+        self.assertEqual(self.bridge.auto_approve, "ask")
+        self.assertFalse(self.bridge.approves_itself("execute_luau"))
+        self.assertFalse(self.bridge.approves_itself("generate_material"))
+        self.assertEqual(self.bridge.status()["settings"], {"auto_approve": "ask"})
+
+    def test_edits_pass_alone_but_generation_still_asks(self):
+        self.assertEqual(self.bridge.set_auto_approve("edits"), "edits")
+        self.assertTrue(self.bridge.approves_itself("execute_luau"))
+        self.assertFalse(self.bridge.approves_itself("generate_material"), "generarea consumă credite: rămâne la om")
+        job = self.submit("editare")
+        self.providers.wait_runs(1)
+        result = self.luau(job, "return 1")
+        self.assertFalse(result["isError"], result)
+        self.assertIsNone(job.pending, "nimeni nu a fost întrebat")
+        self.assertEqual([call[0] for call in self.native.calls], ["execute_luau"])
+        # Aprobarea automată se vede în fluxul sesiunii: nu se execută nimic pe tăcute.
+        self.assertTrue(any(event["type"] == "status" and "Aprobat automat" in event["text"] for event in job.events))
+
+    def test_all_covers_generation_too(self):
+        self.bridge.set_auto_approve("all")
+        self.assertTrue(self.bridge.approves_itself("generate_material"))
+        job = self.submit("generare")
+        self.providers.wait_runs(1)
+        _, conflicts = self.bridge.claims.claim(job.id, job.developer, ["Workspace.Map.Zone3"])
+        self.assertEqual(conflicts, [])
+        self.assertFalse(self.generate(job)["isError"])
+        self.assertIsNone(job.pending)
+
+    def test_the_setting_is_persisted_and_validated(self):
+        state = Path(self.temp.name) / "state"
+        self.bridge.set_auto_approve("all")
+        self.assertEqual(json.loads((state / "config.json").read_text(encoding="utf-8"))["auto_approve"], "all")
+        # Revenirea la implicit scoate cheia din fișier, ca să nu rămână o setare moartă acolo.
+        self.bridge.set_auto_approve("ask")
+        self.assertNotIn("auto_approve", json.loads((state / "config.json").read_text(encoding="utf-8")))
+        for bad in ("da", "", None, 1, True, ["all"]):
+            with self.subTest(bad=bad), self.assertRaisesRegex(BridgeError, "auto_approve"):
+                self.bridge.set_auto_approve(bad)
+        self.assertEqual(self.bridge.auto_approve, "ask")
+
+    def test_a_restarted_daemon_keeps_the_setting(self):
+        self.bridge.set_auto_approve("edits")
+        another = Bridge(ControlledProviders(), Path(self.temp.name) / "runtime2", ControlledNative(), "alt-token-0123456789",
+                         developer="tester", state_directory=Path(self.temp.name) / "state", hub_url=None)
+        try:
+            self.assertEqual(another.auto_approve, "edits")
+            self.assertEqual(another.status()["settings"], {"auto_approve": "edits"})
+        finally:
+            another.close()
 
 
 if __name__ == "__main__":

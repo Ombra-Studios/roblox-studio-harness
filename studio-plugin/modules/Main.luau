@@ -16,7 +16,7 @@ function App:ensure(id)
 	local ok, view = pcall(SessionView.new, self.plugin, store, self.controller, id)
 	self.constructing[id] = nil
 	if ok then
-		if self.alive and store.windows[id] then self.views[id] = view else view:destroy() end
+		if self.alive and store.windows[id] then self.views[id] = view else view:destroy(true) end
 	else
 		self.failedViews[id] = true
 		self.controller:status("Fereastra nativă nu a putut fi creată: " .. tostring(view), true)
@@ -25,7 +25,7 @@ end
 
 function App:prune()
 	for id, view in pairs(self.views) do
-		if not self.store.windows[id] then view:destroy(); self.views[id] = nil; self.failedViews[id] = nil end
+		if not self.store.windows[id] then view:destroy(true); self.views[id] = nil; self.failedViews[id] = nil end
 	end
 end
 
@@ -62,7 +62,8 @@ function App:destroy()
 	self.controller:destroy()
 	-- `Theme.cleanup` marchează owner-ul ca distrus și deconectează tot ce a intrat prin `Theme.connect` (inclusiv `ThemeChanged`).
 	Theme.cleanup(self)
-	for _, view in pairs(self.views) do pcall(view.destroy, view) end
+	-- Oprirea aplicației nu este închiderea ferestrelor: panourile rămân, ca instanța următoare să le poată refolosi.
+	for _, view in pairs(self.views) do pcall(view.destroy, view, false) end
 	table.clear(self.views)
 	if self.hub then pcall(self.hub.destroy, self.hub) end
 	if self.ownsToolbar then pcall(function() self.toolbar:Destroy() end) end

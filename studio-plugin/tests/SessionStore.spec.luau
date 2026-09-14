@@ -356,6 +356,23 @@ return function(Store)
 		assert(Store.identityFrom(nil) == nil and Store.identityFrom({ user_id = "12" }).userId == 12 and Store.workspaceFrom({ name = "x" }) == nil)
 		assert(Store.avatarUrl(0) == nil and Store.avatarUrl("x") == nil and Store.avatarUrl(7.9) == "rbxthumb://type=AvatarHeadShot&id=7&w=48&h=48")
 	end)
+	test("Modul de aprobare vine din daemon și rezistă la răspunsuri fără el sau cu valori străine", function()
+		local store = Store.new()
+		assert(store.autoApprove == "ask", "implicit, fiecare operație se aprobă de om")
+		store:applyStatus({ settings = { auto_approve = "all" } })
+		assert(store.autoApprove == "all")
+		-- Un daemon mai vechi nu trimite `settings`: păstrăm ultima valoare cunoscută, nu o resetăm sub agent.
+		store:applyStatus({})
+		assert(store.autoApprove == "all")
+		for _, bad in ipairs({ "da", "", 1, true }) do
+			store:applyStatus({ settings = { auto_approve = bad } })
+			assert(store.autoApprove == "all", "o valoare necunoscută nu schimbă modul")
+		end
+		store:applyStatus({ settings = { auto_approve = "edits" } })
+		assert(store.autoApprove == "edits")
+		store:applyStatus({ settings = "text" })
+		assert(store.autoApprove == "edits")
+	end)
 	test("Identitatea locală supraviețuiește unui status fără identitate (înainte de primul /v1/identity)", function()
 		local store = Store.new()
 		-- Controllerul publică local contul citit din StudioService înainte ca daemon-ul să îl cunoască.

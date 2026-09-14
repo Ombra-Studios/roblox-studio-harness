@@ -43,6 +43,8 @@ function SessionView.new(pluginObject, store, controller, id)
 	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, window.visible, true, 480, 740, 380, 640)
 	self.widget = pluginObject:CreateDockWidgetPluginGuiAsync("StudioHarnessMatrixSession_" .. id, info)
 	self.widget.Name, self.widget.Title = "StudioHarnessSession_" .. id, window.name
+	-- Ca la hub: panoul supraviețuiește instanței anterioare (Play, metamorfoză), deci îi golim conținutul rămas.
+	for _, child in ipairs(self.widget:GetChildren()) do child:Destroy() end
 	self.root = Theme.frame(self.widget, "SessionContent")
 	self:buildHeader(window)
 	self:buildBody()
@@ -474,10 +476,18 @@ function SessionView:update()
 	self.refreshing = false
 end
 
-function SessionView:destroy()
+-- `permanent` este adevărat doar când fereastra dispare din store (sesiune închisă de utilizator): atunci id-ul nu se mai
+-- repetă și panoul poate fi distrus. La oprirea aplicației (Play, metamorfoză) panoul rămâne, altfel `CreateDockWidgetPluginGuiAsync`
+-- ar întoarce mai târziu un panou distrus pentru aceeași sesiune, iar fereastra nu s-ar mai deschide.
+function SessionView:destroy(permanent)
 	Theme.cleanup(self)
 	self.approval:destroy()
-	self.widget:Destroy()
+	if permanent then
+		self.widget:Destroy()
+	else
+		if self.root then pcall(function() self.root:Destroy() end) end
+		self.root = nil
+	end
 end
 
 return SessionView

@@ -268,3 +268,15 @@ Smoke live al sistemului complet, pe porturi libere și stare temporară (hub + 
 
 Tot în această rundă a fost reparat un test fragil: `test_deploy.test_installer_is_valid_bash` alegea `C:\Windows\System32ash.exe` (lansatorul WSL) când suita pornea din PowerShell, iar acela iese cu 1 și fără mesaj când nu există nicio distribuție instalată. Testul caută acum primul `bash` care chiar rulează și se sare singur dacă nu există niciunul. Suita completă trece acum identic din Git Bash și din PowerShell: **571 de teste**.
 
+## 12. Play în Studio și aprobarea automată (14 septembrie 2026)
+
+**Simptomul raportat:** după un Play, pluginul nu se mai vedea, „ca și cum s-ar deconecta”. Măsurat pe daemon în timpul unui playtest real (pornit și oprit prin MCP): `plugin_connected` a rămas `true` tot timpul, deci legătura nu se rupsese — dispăruse doar interfața.
+
+**Cauza:** Studio descarcă pluginul la fiecare Play (`plugin.Unloading`), iar `HubView:destroy` și `SessionView:destroy` chemau `widget:Destroy()`. Un `DockWidgetPluginGui` distrus nu mai poate fi recreat cu același id în aceeași sesiune Studio, așa că la reîncărcare panoul rămânea mort. Același defect ar fi lovit și la metamorfoza aplicației.
+
+**Corecția:** panourile nu se mai distrug la oprirea aplicației (se golește doar conținutul, iar instanța următoare curăță ce a rămas); `SessionView:destroy(permanent)` distruge panoul doar când fereastra dispare din store, caz în care id-ul nu se mai repetă.
+
+**Aprobarea automată:** `auto_approve` în `config.json`, cu `ask` (implicit), `edits` și `all`; rută `POST /v1/settings`, câmp `settings` în `/v1/status`, buton în plugin care ciclează cele trei moduri. O operație trecută automat emite un eveniment `status` în sesiune, deci rămâne vizibilă. Verificat pe daemon-ul real: setarea pe `all` a fost scrisă în `config.json` și citită înapoi din `/v1/status`.
+
+Suita completă după aceste schimbări: **576 de teste** Python (5 noi pentru aprobare) și spec-urile Luau **61/14/28/13**.
+

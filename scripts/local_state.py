@@ -137,6 +137,26 @@ def read_config(directory: Path) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def write_config(directory: Path, changes: dict) -> dict:
+    """Scrie `config.json` cu cheile date peste cele existente (scriere atomică, permisiuni restrânse ca la tokenuri).
+
+    Cheile cu valoarea None se șterg, ca o setare revenită la implicit să nu rămână scrisă în fișier."""
+    config = read_config(directory)
+    for key, value in changes.items():
+        if value is None:
+            config.pop(key, None)
+        else:
+            config[key] = value
+    directory.mkdir(parents=True, exist_ok=True)
+    temporary = directory / "config.json.part"
+    body = json.dumps(config, ensure_ascii=False, indent=1, sort_keys=True) + "\n"
+    temporary.write_bytes(body.encode("utf-8"))
+    restrict_permissions(temporary)
+    os.replace(temporary, directory / "config.json")
+    restrict_permissions(directory / "config.json")
+    return config
+
+
 def normalize_hub_url(value: object) -> str | None:
     """Adresa hub-ului fără slash final, sau None dacă nu este acceptată.
 

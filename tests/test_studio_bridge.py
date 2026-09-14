@@ -766,7 +766,9 @@ class HttpTests(unittest.TestCase):
                                           "checked": None, "restart_required": False})
         self.assertEqual(body["features"], {"queued_sessions": True, "batch_events": True, "terminal_sessions": True, "claims": True,
                                             "board": True, "project": True, "plugin_bundle": True, "identity": True, "workspaces": True,
-                                            "panel": True})
+                                            "panel": True, "settings": True})
+        # Implicit, fiecare operație a agentului se aprobă de om; setarea se schimbă din plugin și se ține în config.json.
+        self.assertEqual(body["settings"], {"auto_approve": "ask"})
         self.assertNotIn("team", body)
         # 1.0: fără hub (--no-hub) daemon-ul este `disabled`, fără panou, fără identitate până la primul /v1/identity.
         self.assertEqual(body["hub"], {"url": None, "status": "disabled", "hub_id": None, "device_id": DEVICE_ID_OF(self.bridge), "error": "Hub dezactivat (daemon pornit cu --no-hub).",

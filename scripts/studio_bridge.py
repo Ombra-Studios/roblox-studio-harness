@@ -33,14 +33,15 @@ import process_tree
 import project_map
 import updater
 from claims import Claim, ClaimTable, display, luau_literals, normalize, related, within
-from local_state import DEFAULT_HUB_URL, ensure_device_token, ensure_local_token, resolve_hub_url, state_dir
+from local_state import (DEFAULT_HUB_URL, ensure_device_token, ensure_local_token, read_config, resolve_hub_url,
+                         state_dir, write_config)
 from mcp_client import McpClient, McpError, studio_command
 from team_client import HubClient, HubError, unavailable
 from roblox_harness import DATAMODEL_TOOLS, GENERATION_TOOLS, READ_TOOLS, connected_studios, reject_constant, validate_target, wait_for_studios
 
 VERSION = "1.0.0"
 FEATURES = {"queued_sessions": True, "batch_events": True, "terminal_sessions": True, "claims": True, "board": True,
-            "project": True, "plugin_bundle": True, "identity": True, "workspaces": True, "panel": True}
+            "project": True, "plugin_bundle": True, "identity": True, "workspaces": True, "panel": True, "settings": True}
 BUNDLE_ENTRY = "Main"
 BUNDLE_RECHECK = 2.0
 MAX_BODY = 1024 * 1024
@@ -75,6 +76,9 @@ RUNNING_STATES = {"running", "waiting_approval"}
 BLOCKED_NATIVE_TOOLS = frozenset({"subagent", "skill"})
 PLAY_TOOLS = frozenset({"start_stop_play", "user_keyboard_input", "user_mouse_input", "character_navigation"})
 PATH_KEYS = ("parent_path", "path", "target_path", "file_path")
+# Aprobarea operațiilor cerute de agent: „ask” întreabă de fiecare dată (implicit), „edits” aprobă singur orice modificare
+# a scenei dar lasă generarea (consumă credite Roblox) la decizia omului, „all” aprobă și generarea.
+AUTO_APPROVE_MODES = ("ask", "edits", "all")
 # 1.0: identitate Roblox, workspace și hub.
 MAX_IDENTITY_NAME = 64
 MAX_PLACE_NAME = 200
@@ -558,6 +562,7 @@ class Bridge:
         self._device_token = device_token or ensure_device_token(self.state_directory)
         if (self.state_directory / "team.json").exists():
             self.log(TEAM_JSON_NOTICE)
+        self.auto_approve = self._read_auto_approve()
         disabled_error = None
         if hub_url is UNSET:
             url, self.hub_source = resolve_hub_url(self.state_directory)
@@ -831,7 +836,7 @@ class Bridge:
                 **counters, "developer": self.developer, "machine": self.machine, "identity": identity, "workspace": workspace,
                 "hub": hub, "panel_url": self.panel_url(), "members": self.hub.member_rows() if approved else [],
                 "workspaces": self.workspace_summary(), "update": self.update_status(), "project": self.project_summary(),
-                "plugin_bundle": self.plugin_bundle_summary()}
+                "plugin_bundle": self.plugin_bundle_summary(), "settings": {"auto_approve": self.auto_approve}}
 
     # ----- harta proiectului -----
 
@@ -1017,6 +1022,27 @@ class Bridge:
             with self.lock:
                 return sessions, [], list(self.journal)[-journal_limit:]
         return sessions + self.hub.remote_rows(), self.hub.member_rows(), self.hub.journal_rows(journal_limit, workspace=workspace)
+
+    def _read_auto_approve(self) -> str:
+        value = read_config(self.state_directory).get("auto_approve")
+        return value if value in AUTO_APPROVE_MODES else "ask"
+
+    def set_auto_approve(self, value: Any) -> str:
+        """Schimbă și păstrează modul de aprobare; se aplică imediat, inclusiv cererilor care urmează într-o sesiune pornită."""
+        if value not in AUTO_APPROVE_MODES:
+            raise BridgeError("auto_approve trebuie să fie " + ", ".join(AUTO_APPROVE_MODES) + ".")
+        with self.lock:
+            self.auto_approve = value
+            write_config(self.state_directory, {"auto_approve": None if value == "ask" else value})
+        self.log("aprobare automată: " + value)
+        self.touch_ui()
+        return value
+
+    def approves_itself(self, tool: str) -> bool:
+        """Operația trece fără să îl mai întrebe pe utilizator?"""
+        if self.auto_approve == "all":
+            return True
+        return self.auto_approve == "edits" and tool not in GENERATION_TOOLS
 
     def reap_terminals(self, force: bool = False) -> list[str]:
         """Închide sesiunile din terminal al căror CLI a dispărut fără să anunțe daemon-ul (închidere brutală, pană de curent).
@@ -1564,9 +1590,12 @@ class Bridge:
                 paths = [display(path) for path in self._required_paths(name, arguments, studio_id)]
                 arguments.pop("scope", None)
                 if job.kind == "studio" or name in GENERATION_TOOLS:
-                    if job.kind == "terminal" and not self.plugin_connected():
+                    if self.approves_itself(name):
+                        # Aprobarea automată rămâne vizibilă în fluxul sesiunii și în jurnal: nimic nu se execută pe tăcute.
+                        job.emit("status", "Aprobat automat (aprobarea este pe „" + self.auto_approve + "”).", tool=name)
+                    elif job.kind == "terminal" and not self.plugin_connected():
                         return text_result("Generarea cere aprobare în Studio, dar pluginul Studio Harness nu este conectat la daemon. Deschide Studio cu pluginul instalat, apoi reia.", True)
-                    if not job.request_approval(name, arguments):
+                    elif not job.request_approval(name, arguments):
                         return text_result("Utilizatorul nu a aprobat operația. Nu o relua pe altă cale.", True)
             self._require_active(job)
             job.emit("tool", "Execut instrumentul în instanța selectată.", tool=name)
@@ -1704,6 +1733,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 bridge.touch_ui()
                 bridge.set_default_studio(self._body())
                 result = {"ok": True}
+            elif self.command == "POST" and path.path == "/v1/settings":
+                bridge.touch_ui()
+                result = {"ok": True, "settings": {"auto_approve": bridge.set_auto_approve(self._body().get("auto_approve"))}}
             elif self.command == "POST" and path.path == "/v1/project/chunks":
                 bridge.touch_ui()
                 result = bridge.project_chunk(self._body())

@@ -140,6 +140,9 @@ function Hub.new(pluginObject, store, controller)
 	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Left, initialVisible, true, 336, 800, 320, 480)
 	self.widget = pluginObject:CreateDockWidgetPluginGuiAsync(WIDGET_ID, info)
 	self.widget.Title, self.widget.Name = "Studio Harness", "StudioHarnessHub"
+	-- Studio întoarce același panou pentru același id cât ține sesiunea: dacă a mai rulat o instanță (repornire la Play,
+	-- metamorfoză), conținutul ei vechi este încă înăuntru. Îl golim, ca să nu se suprapună două interfețe.
+	for _, child in ipairs(self.widget:GetChildren()) do child:Destroy() end
 	self.root = Theme.frame(self.widget, "Hub")
 	self.scroll = Theme.scroll(self.root, "Content")
 	Theme.new("UIPadding", { PaddingLeft = UDim.new(0, Theme.SPACE.lg), PaddingRight = UDim.new(0, Theme.SPACE.lg),
@@ -268,6 +271,20 @@ function Hub:buildAction(order)
 	end
 	self.createHint = Theme.label(root, "", { size = "xs", token = "text2", name = "Reason" })
 	self.createHint.LayoutOrder = 4
+	-- Cine aprobă operațiile agentului. Un singur buton care ciclează prin cele trei moduri, ca să încapă la 320 px.
+	self.autoApprove = Theme.button(root, "", { kind = "ghost", size = "sm", name = "AutoApprove" })
+	self.autoApprove.LayoutOrder = 5
+	Theme.click(self, self.autoApprove, function()
+		local next = { ask = "edits", edits = "all", all = "ask" }
+		self.controller:setAutoApprove(next[self.store.autoApprove] or "edits")
+	end)
+end
+
+-- Textul butonului de aprobare: spune ce se întâmplă acum, nu numele setării.
+function Hub.approvalLabel(mode)
+	if mode == "all" then return "Aprobare: automată, inclusiv generarea (consumă credite)" end
+	if mode == "edits" then return "Aprobare: automată pentru modificări, generarea se cere" end
+	return "Aprobare: cer de fiecare dată"
 end
 
 -- 5. Sesiuni: „Ale tale” (ferestrele acestui dispozitiv) și „În workspace” (sesiunile colegilor, doar de citit).
@@ -596,6 +613,8 @@ function Hub:updateAction()
 	Theme.enabled(self.create, reason == nil)
 	self.createHint.Visible = reason ~= nil
 	self.createHint.Text = reason or ""
+	self.autoApprove.Text = Hub.approvalLabel(self.store.autoApprove)
+	Theme.enabled(self.autoApprove, self.store.connected and self.store.compatible and not self.store.connecting)
 end
 
 -- Motivul pentru care „Sesiune nouă” este dezactivat; nil înseamnă că poate fi apăsat.
@@ -898,7 +917,11 @@ function Hub:destroy()
 		end
 		table.clear(cache)
 	end
-	self.widget:Destroy()
+	-- Panoul NU se distruge: `CreateDockWidgetPluginGuiAsync` întoarce, pentru același id, un panou distrus și inutilizabil
+	-- tot restul sesiunii Studio. Studio descarcă pluginul la fiecare Play, deci un `Destroy()` aici însemna că după primul
+	-- playtest interfața nu mai apărea deloc. Golim conținutul și lăsăm panoul următoarei instanțe.
+	if self.root then pcall(function() self.root:Destroy() end) end
+	self.root = nil
 end
 
 return Hub

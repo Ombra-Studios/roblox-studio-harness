@@ -247,6 +247,8 @@ function Store.new()
 		providers = {}, studios = {}, defaultStudioId = nil, defaultProvider = "claude",
 		developer = nil, machine = nil, identity = nil, workspace = nil, hub = Store.defaultHub(),
 		members = {}, workspaces = {}, viewWorkspace = nil, view = nil, pluginConnected = false, daemonProject = nil,
+		-- „ask” (implicit) | „edits” (orice modificare, fără generare) | „all” (inclusiv generarea, care consumă credite).
+		autoApprove = "ask",
 		claims = {}, journal = {}, dismissedTerminal = {},
 		update = Store.defaultUpdate(), project = Store.defaultProject(), bundleError = nil,
 		status = "Daemon deconectat. Poți deschide ferestre draft.", statusError = false,
@@ -780,6 +782,10 @@ function Store:applyStatus(data)
 	if type(data.developer) == "string" and data.developer ~= "" then self.developer = Store.prefix(data.developer, 60) end
 	self.machine = cleanText(data.machine, 64) or self.machine
 	self.pluginConnected = data.plugin_connected == true
+	-- Modul de aprobare ține de daemon (îl păstrează în config.json); pluginul doar îl arată și îl schimbă.
+	local settings = if type(data.settings) == "table" then data.settings else nil
+	local mode = if settings then settings.auto_approve else nil
+	if mode == "ask" or mode == "edits" or mode == "all" then self.autoApprove = mode end
 	self:applyPresence(data)
 	self:applyUpdate(data.update)
 	self.daemonProject = Store.daemonProjectFrom(data.project)

@@ -379,6 +379,28 @@ function Controller:sendIdentity(generation)
 	else self:pollFailure(message, code) end
 end
 
+-- Modul de aprobare a operațiilor cerute de agent. Daemon-ul îl păstrează în `config.json`, deci ține și după repornire.
+function Controller:setAutoApprove(mode)
+	if mode ~= "ask" and mode ~= "edits" and mode ~= "all" then return false end
+	if not self.store.connected or self.store.connecting or not self.store.compatible then
+		self:status("Aprobarea se schimbă prin daemon: pornește-l și așteaptă conectarea.", true)
+		return false
+	end
+	local previous = self.store.autoApprove
+	-- Arătăm imediat noua stare; dacă daemon-ul refuză, revenim la cea veche și spunem de ce.
+	self.store.autoApprove = mode
+	self.store:emit(nil)
+	table.insert(self.queue, 1, { bridgeId = self.store.bridgeId, run = function(generation)
+		local response, message, code = self:request("POST", "/v1/settings", { auto_approve = mode }, self.token)
+		if not self:valid(generation) then return end
+		if response then return end
+		self.store.autoApprove = previous
+		self.store:emit(nil)
+		if code == 401 or code == 403 then self:disconnect(message, code) else self:status("Aprobarea nu s-a schimbat: " .. tostring(message), true) end
+	end })
+	return true
+end
+
 -- Butonul „Panou”: daemon-ul deschide browserul la panoul hub-ului (adresa cu tokenul dispozitivului nu trece prin plugin).
 function Controller:openPanel()
 	if not self.store.connected or self.store.connecting or not self.store.compatible then

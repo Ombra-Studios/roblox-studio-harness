@@ -788,3 +788,23 @@ Coduri HTTP folosite de hub și daemon:
 - Loader 1.0.0 (instalat de 0.8) cu aplicația 1.0.0 (hot swap): nu are `LocalToken`, dar setarea `StudioHarnessBridgeToken` salvată în 0.8 rămâne valabilă; utilizatorul repornește Studio o dată după instalarea loader-ului 1.1.0.
 - `team.json` este ignorat; `Setup-Team.cmd`, `setup-team.ps1`, `Start-Team-Hub.cmd` sunt eliminate din repo și din pachete.
 - `harness_mcp.compatible_version` acceptă ≥ 1.0 și 0.x ≥ 0.4 (doar `major.minor`, sufixul ignorat); shim-ul 0.8 funcționează cu daemon-ul 1.0 (rutele `/v1/terminal/*` sunt neschimbate), iar proxy-ul `bridge_mcp.py` raportează `serverInfo.version = "1.0.0"`.
+
+## Aprobarea operațiilor (1.0)
+
+Daemon-ul ține modul de aprobare în `config.json` (cheia `auto_approve`), deci rezistă peste reporniri; implicit lipsește, adică `ask`.
+
+| Mod | Ce trece fără să întrebe |
+| --- | --- |
+| `ask` (implicit) | nimic: fiecare operație a agentului cere aprobarea omului |
+| `edits` | orice modificare a scenei; generarea (`generate_mesh`, `generate_material`, `generate_procedural_model`, `subagent`) tot se cere, fiindcă poate consuma credite Roblox |
+| `all` | tot, inclusiv generarea |
+
+- `GET /v1/status` întoarce `settings: {auto_approve}`, iar `features.settings` este `true`.
+- `POST /v1/settings` (token UI) cu `{"auto_approve": "ask" | "edits" | "all"}` → `{ok, settings}`; orice altă valoare este `400`. Revenirea la `ask` șterge cheia din `config.json`.
+- O operație trecută automat emite în sesiune un eveniment `status` („Aprobat automat…”), deci rămâne în fluxul ferestrei și în jurnal: nimic nu se execută pe tăcute.
+- În plugin, butonul din secțiunea acțiunii ciclează `ask → edits → all` și arată în text ce se întâmplă acum.
+
+## Panourile pluginului și modul Play
+
+Studio descarcă pluginul la fiecare intrare în Play (`plugin.Unloading`) și îl reîncarcă după. Un `DockWidgetPluginGui` distrus nu mai poate fi recreat cu același id cât ține sesiunea Studio, deci aplicația **nu** distruge niciodată panoul hub-ului și nici panourile sesiunilor la oprire: le golește conținutul și le lasă instanței următoare, care la pornire curăță ce a rămas în ele. Panoul unei sesiuni se distruge doar când fereastra dispare din store (utilizatorul a închis-o), pentru că atunci id-ul nu se mai repetă.
+

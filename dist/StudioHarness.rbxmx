@@ -880,6 +880,28 @@ function Controller:sendIdentity(generation)
 	else self:pollFailure(message, code) end
 end
 
+-- Modul de aprobare a operațiilor cerute de agent. Daemon-ul îl păstrează în `config.json`, deci ține și după repornire.
+function Controller:setAutoApprove(mode)
+	if mode ~= "ask" and mode ~= "edits" and mode ~= "all" then return false end
+	if not self.store.connected or self.store.connecting or not self.store.compatible then
+		self:status("Aprobarea se schimbă prin daemon: pornește-l și așteaptă conectarea.", true)
+		return false
+	end
+	local previous = self.store.autoApprove
+	-- Arătăm imediat noua stare; dacă daemon-ul refuză, revenim la cea veche și spunem de ce.
+	self.store.autoApprove = mode
+	self.store:emit(nil)
+	table.insert(self.queue, 1, { bridgeId = self.store.bridgeId, run = function(generation)
+		local response, message, code = self:request("POST", "/v1/settings", { auto_approve = mode }, self.token)
+		if not self:valid(generation) then return end
+		if response then return end
+		self.store.autoApprove = previous
+		self.store:emit(nil)
+		if code == 401 or code == 403 then self:disconnect(message, code) else self:status("Aprobarea nu s-a schimbat: " .. tostring(message), true) end
+	end })
+	return true
+end
+
 -- Butonul „Panou”: daemon-ul deschide browserul la panoul hub-ului (adresa cu tokenul dispozitivului nu trece prin plugin).
 function Controller:openPanel()
 	if not self.store.connected or self.store.connecting or not self.store.compatible then
@@ -1349,6 +1371,9 @@ function Hub.new(pluginObject, store, controller)
 	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Left, initialVisible, true, 336, 800, 320, 480)
 	self.widget = pluginObject:CreateDockWidgetPluginGuiAsync(WIDGET_ID, info)
 	self.widget.Title, self.widget.Name = "Studio Harness", "StudioHarnessHub"
+	-- Studio întoarce același panou pentru același id cât ține sesiunea: dacă a mai rulat o instanță (repornire la Play,
+	-- metamorfoză), conținutul ei vechi este încă înăuntru. Îl golim, ca să nu se suprapună două interfețe.
+	for _, child in ipairs(self.widget:GetChildren()) do child:Destroy() end
 	self.root = Theme.frame(self.widget, "Hub")
 	self.scroll = Theme.scroll(self.root, "Content")
 	Theme.new("UIPadding", { PaddingLeft = UDim.new(0, Theme.SPACE.lg), PaddingRight = UDim.new(0, Theme.SPACE.lg),
@@ -1477,6 +1502,20 @@ function Hub:buildAction(order)
 	end
 	self.createHint = Theme.label(root, "", { size = "xs", token = "text2", name = "Reason" })
 	self.createHint.LayoutOrder = 4
+	-- Cine aprobă operațiile agentului. Un singur buton care ciclează prin cele trei moduri, ca să încapă la 320 px.
+	self.autoApprove = Theme.button(root, "", { kind = "ghost", size = "sm", name = "AutoApprove" })
+	self.autoApprove.LayoutOrder = 5
+	Theme.click(self, self.autoApprove, function()
+		local next = { ask = "edits", edits = "all", all = "ask" }
+		self.controller:setAutoApprove(next[self.store.autoApprove] or "edits")
+	end)
+end
+
+-- Textul butonului de aprobare: spune ce se întâmplă acum, nu numele setării.
+function Hub.approvalLabel(mode)
+	if mode == "all" then return "Aprobare: automată, inclusiv generarea (consumă credite)" end
+	if mode == "edits" then return "Aprobare: automată pentru modificări, generarea se cere" end
+	return "Aprobare: cer de fiecare dată"
 end
 
 -- 5. Sesiuni: „Ale tale” (ferestrele acestui dispozitiv) și „În workspace” (sesiunile colegilor, doar de citit).
@@ -1805,6 +1844,8 @@ function Hub:updateAction()
 	Theme.enabled(self.create, reason == nil)
 	self.createHint.Visible = reason ~= nil
 	self.createHint.Text = reason or ""
+	self.autoApprove.Text = Hub.approvalLabel(self.store.autoApprove)
+	Theme.enabled(self.autoApprove, self.store.connected and self.store.compatible and not self.store.connecting)
 end
 
 -- Motivul pentru care „Sesiune nouă” este dezactivat; nil înseamnă că poate fi apăsat.
@@ -2107,7 +2148,11 @@ function Hub:destroy()
 		end
 		table.clear(cache)
 	end
-	self.widget:Destroy()
+	-- Panoul NU se distruge: `CreateDockWidgetPluginGuiAsync` întoarce, pentru același id, un panou distrus și inutilizabil
+	-- tot restul sesiunii Studio. Studio descarcă pluginul la fiecare Play, deci un `Destroy()` aici însemna că după primul
+	-- playtest interfața nu mai apărea deloc. Golim conținutul și lăsăm panoul următoarei instanțe.
+	if self.root then pcall(function() self.root:Destroy() end) end
+	self.root = nil
 end
 
 return Hub
@@ -2135,7 +2180,7 @@ function App:ensure(id)
 	local ok, view = pcall(SessionView.new, self.plugin, store, self.controller, id)
 	self.constructing[id] = nil
 	if ok then
-		if self.alive and store.windows[id] then self.views[id] = view else view:destroy() end
+		if self.alive and store.windows[id] then self.views[id] = view else view:destroy(true) end
 	else
 		self.failedViews[id] = true
 		self.controller:status("Fereastra nativă nu a putut fi creată: " .. tostring(view), true)
@@ -2144,7 +2189,7 @@ end
 
 function App:prune()
 	for id, view in pairs(self.views) do
-		if not self.store.windows[id] then view:destroy(); self.views[id] = nil; self.failedViews[id] = nil end
+		if not self.store.windows[id] then view:destroy(true); self.views[id] = nil; self.failedViews[id] = nil end
 	end
 end
 
@@ -2181,7 +2226,8 @@ function App:destroy()
 	self.controller:destroy()
 	-- `Theme.cleanup` marchează owner-ul ca distrus și deconectează tot ce a intrat prin `Theme.connect` (inclusiv `ThemeChanged`).
 	Theme.cleanup(self)
-	for _, view in pairs(self.views) do pcall(view.destroy, view) end
+	-- Oprirea aplicației nu este închiderea ferestrelor: panourile rămân, ca instanța următoare să le poată refolosi.
+	for _, view in pairs(self.views) do pcall(view.destroy, view, false) end
 	table.clear(self.views)
 	if self.hub then pcall(self.hub.destroy, self.hub) end
 	if self.ownsToolbar then pcall(function() self.toolbar:Destroy() end) end
@@ -2645,6 +2691,8 @@ function Store.new()
 		providers = {}, studios = {}, defaultStudioId = nil, defaultProvider = "claude",
 		developer = nil, machine = nil, identity = nil, workspace = nil, hub = Store.defaultHub(),
 		members = {}, workspaces = {}, viewWorkspace = nil, view = nil, pluginConnected = false, daemonProject = nil,
+		-- „ask” (implicit) | „edits” (orice modificare, fără generare) | „all” (inclusiv generarea, care consumă credite).
+		autoApprove = "ask",
 		claims = {}, journal = {}, dismissedTerminal = {},
 		update = Store.defaultUpdate(), project = Store.defaultProject(), bundleError = nil,
 		status = "Daemon deconectat. Poți deschide ferestre draft.", statusError = false,
@@ -3178,6 +3226,10 @@ function Store:applyStatus(data)
 	if type(data.developer) == "string" and data.developer ~= "" then self.developer = Store.prefix(data.developer, 60) end
 	self.machine = cleanText(data.machine, 64) or self.machine
 	self.pluginConnected = data.plugin_connected == true
+	-- Modul de aprobare ține de daemon (îl păstrează în config.json); pluginul doar îl arată și îl schimbă.
+	local settings = if type(data.settings) == "table" then data.settings else nil
+	local mode = if settings then settings.auto_approve else nil
+	if mode == "ask" or mode == "edits" or mode == "all" then self.autoApprove = mode end
 	self:applyPresence(data)
 	self:applyUpdate(data.update)
 	self.daemonProject = Store.daemonProjectFrom(data.project)
@@ -3571,6 +3623,8 @@ function SessionView.new(pluginObject, store, controller, id)
 	local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, window.visible, true, 480, 740, 380, 640)
 	self.widget = pluginObject:CreateDockWidgetPluginGuiAsync("StudioHarnessMatrixSession_" .. id, info)
 	self.widget.Name, self.widget.Title = "StudioHarnessSession_" .. id, window.name
+	-- Ca la hub: panoul supraviețuiește instanței anterioare (Play, metamorfoză), deci îi golim conținutul rămas.
+	for _, child in ipairs(self.widget:GetChildren()) do child:Destroy() end
 	self.root = Theme.frame(self.widget, "SessionContent")
 	self:buildHeader(window)
 	self:buildBody()
@@ -4002,10 +4056,18 @@ function SessionView:update()
 	self.refreshing = false
 end
 
-function SessionView:destroy()
+-- `permanent` este adevărat doar când fereastra dispare din store (sesiune închisă de utilizator): atunci id-ul nu se mai
+-- repetă și panoul poate fi distrus. La oprirea aplicației (Play, metamorfoză) panoul rămâne, altfel `CreateDockWidgetPluginGuiAsync`
+-- ar întoarce mai târziu un panou distrus pentru aceeași sesiune, iar fereastra nu s-ar mai deschide.
+function SessionView:destroy(permanent)
 	Theme.cleanup(self)
 	self.approval:destroy()
-	self.widget:Destroy()
+	if permanent then
+		self.widget:Destroy()
+	else
+		if self.root then pcall(function() self.root:Destroy() end) end
+		self.root = nil
+	end
 end
 
 return SessionView
