@@ -348,13 +348,15 @@ class UpdateWithStudioAppTests(unittest.TestCase):
 
     @staticmethod
     def packaged(tag):
-        """Un .rbxmx de pachet: conține placeholder-ul LocalToken, pe care instalarea îl înlocuiește cu tokenul UI al daemon-ului."""
-        return b"<roblox>" + tag + b" " + updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8") + b"</roblox>"
+        """Un .rbxmx de pachet: slotul `LocalToken`, pe care instalarea îl umple cu tokenul UI al daemon-ului."""
+        return (b'<roblox>' + tag + b'<string name="Name">LocalToken</string><string name="Value">'
+                + updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8") + b'</string></roblox>')
 
     @staticmethod
     def installed(tag):
         # make_bridge dă daemon-ului tokenul UI din test_studio_bridge; fișierul din Roblox\Plugins îl conține în locul placeholder-ului.
-        return b"<roblox>" + tag + b" " + UI_TOKEN.encode("utf-8") + b"</roblox>"
+        return (b'<roblox>' + tag + b'<string name="Name">LocalToken</string><string name="Value">'
+                + UI_TOKEN.encode("utf-8") + b'</string></roblox>')
 
     def publish(self, version, loader="1.0.0", app_modules=MODULES, rbxmx=None, with_app=True):
         rbxmx = self.packaged(b"v1") if rbxmx is None else rbxmx
@@ -539,7 +541,11 @@ class InstallerScriptTests(unittest.TestCase):
     <stare>\\plugin-backups (STUDIO_HARNESS_STATE_DIR sau %LOCALAPPDATA%\\StudioHarness)."""
 
     SCRIPT = ROOT / "scripts" / "install-studio-plugin.ps1"
-    PACKAGED = ('<roblox version="4"><Item class="Script"><Item class="StringValue"><Properties><string name="Name">LocalToken</string>'
+    # Ca pachetul real: sursa loader-ului păstrează același șir ca literal (constanta cu care își respinge propriul cod
+    # neinstalat), pe lângă slotul `LocalToken`. Instalatorul are voie să schimbe doar slotul.
+    PACKAGED = ('<roblox version="4"><Item class="Script"><Properties><ProtectedString name="Source">'
+                'local TOKEN_PLACEHOLDER = "' + updater.LOCAL_TOKEN_PLACEHOLDER + '" return token ~= TOKEN_PLACEHOLDER'
+                '</ProtectedString></Properties><Item class="StringValue"><Properties><string name="Name">LocalToken</string>'
                 '<string name="Value">' + updater.LOCAL_TOKEN_PLACEHOLDER + '</string></Properties></Item></Item></roblox>\n').encode("utf-8")
 
     def powershell(self):
@@ -554,7 +560,8 @@ class InstallerScriptTests(unittest.TestCase):
                        "('app-' + $stamp)", "Main.luau", "-Filter '*.luau'", "AppModules", "AppDirectory", "AppBackup",
                        "$env:STUDIO_HARNESS_STATE_DIR", "Join-Path $env:LOCALAPPDATA 'StudioHarness'", "Join-Path $stateDirectory 'local-token'",
                        "'" + updater.LOCAL_TOKEN_PLACEHOLDER + "'", "'^[A-Za-z0-9_\\-]{16,512}$'", "RandomNumberGenerator", "TrimEnd('=').Replace('+', '-').Replace('/', '_')",
-                       "$packaged.Replace($tokenPlaceholder, $token)", "[IO.File]::WriteAllBytes($target, $installedBytes)",
+                       "[Regex]::Replace($packaged, $tokenSlot,", '<string name="Name">LocalToken</string>',
+                       "[IO.File]::WriteAllBytes($target, $installedBytes)",
                        "LocalTokenFile", "LocalTokenCreated", "LocalTokenInjected"):
             self.assertIn(needle, script)
         # Pachetul din dist/ nu se copiază ca atare (ar rămâne cu placeholder) și tokenul nu ajunge în rezumat/consolă.
@@ -615,7 +622,11 @@ class InstallerScriptTests(unittest.TestCase):
             token = token_file.read_bytes().decode("utf-8")
             self.assertRegex(token, r"^[A-Za-z0-9_\-]{43}$")
             self.assertEqual(updater.inject_local_token(self.PACKAGED, token), (plugins / "StudioHarness.rbxmx").read_bytes())
-            self.assertNotIn(updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"), (plugins / "StudioHarness.rbxmx").read_bytes())
+            # Instalatorul PowerShell înlocuiește doar slotul: constanta din sursa loader-ului rămâne literalul, altfel
+            # pluginul instalat și-ar respinge propriul cod (token == TOKEN_PLACEHOLDER) și nu s-ar conecta niciodată.
+            installed_bytes = (plugins / "StudioHarness.rbxmx").read_bytes()
+            self.assertEqual(installed_bytes.count(token.encode("utf-8")), 1)
+            self.assertIn(b'local TOKEN_PLACEHOLDER = "' + updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8") + b'"', installed_bytes)
             self.assertNotIn(token, stdout)
             self.assertEqual((root / "dist" / "StudioHarness.rbxmx").read_bytes(), self.PACKAGED)
             self.assertEqual(updater.read_luau_modules(plugins / "StudioHarness" / "app"), MODULES)

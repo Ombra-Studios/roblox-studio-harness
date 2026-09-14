@@ -712,7 +712,12 @@ class StudioPluginInstallTests(unittest.TestCase):
         self.assertEqual(sorted(path.name for path in self.plugins.iterdir()), ["StudioHarness.rbxmx"])
 
 
-PACKAGED_RBXMX = ('<roblox version="4"><Item class="Script"><Item class="StringValue"><Properties><string name="Name">LocalToken</string>'
+# Ca pachetul real: sursa loader-ului conține același șir ca literal (constanta cu care își respinge propriul cod
+# neinstalat), pe lângă slotul `LocalToken`. Doar slotul devine tokenul.
+PACKAGED_RBXMX = ('<roblox version="4"><Item class="Script"><Properties>'
+                  '<ProtectedString name="Source">local TOKEN_PLACEHOLDER = "' + updater.LOCAL_TOKEN_PLACEHOLDER + '" '
+                  'return token ~= TOKEN_PLACEHOLDER</ProtectedString></Properties>'
+                  '<Item class="StringValue"><Properties><string name="Name">LocalToken</string>'
                   '<string name="Value">' + updater.LOCAL_TOKEN_PLACEHOLDER + '</string></Properties></Item></Item></roblox>').encode("utf-8")
 UI_TOKEN = "cod-local-de-test_0123456789"
 
@@ -720,11 +725,20 @@ UI_TOKEN = "cod-local-de-test_0123456789"
 class LocalTokenInjectionTests(unittest.TestCase):
     """1.0: placeholder-ul `LocalToken` din pachet devine tokenul UI doar în fișierul instalat (funcție pură, pe orice sistem)."""
 
-    def test_placeholder_is_replaced_only_with_a_token_and_only_where_it_exists(self):
+    def test_placeholder_is_replaced_only_in_the_local_token_slot(self):
+        placeholder = updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8")
         injected = updater.inject_local_token(PACKAGED_RBXMX, UI_TOKEN)
-        self.assertEqual(injected, PACKAGED_RBXMX.replace(updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"), UI_TOKEN.encode("utf-8")))
-        self.assertNotIn(updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"), injected)
-        self.assertIn(b"<string name=\"Value\">" + UI_TOKEN.encode("utf-8") + b"</string>", injected)
+        # Tokenul intră o singură dată, în valoarea LocalToken.
+        self.assertEqual(injected.count(UI_TOKEN.encode("utf-8")), 1)
+        self.assertIn(b"<string name=\"Name\">LocalToken</string><string name=\"Value\">" + UI_TOKEN.encode("utf-8") + b"</string>", injected)
+        # Constanta din sursa loader-ului rămâne literalul: altfel pluginul instalat și-ar respinge propriul cod
+        # (token == TOKEN_PLACEHOLDER) și nu s-ar mai conecta niciodată la daemon.
+        self.assertIn(b'local TOKEN_PLACEHOLDER = "' + placeholder + b'"', injected)
+        self.assertEqual(injected.count(placeholder), PACKAGED_RBXMX.count(placeholder) - 1)
+        self.assertEqual(len(injected), len(PACKAGED_RBXMX) - len(placeholder) + len(UI_TOKEN.encode("utf-8")))
+        # Două sloturi LocalToken: pachet stricat, nu injectăm nimic.
+        with self.assertRaisesRegex(UpdateError, "mai multe valori LocalToken"):
+            updater.inject_local_token(PACKAGED_RBXMX + PACKAGED_RBXMX, UI_TOKEN)
         # Fără token: pachetul rămâne cu placeholder (câmpul manual din Avansat rămâne fallback-ul).
         self.assertEqual(updater.inject_local_token(PACKAGED_RBXMX, None), PACKAGED_RBXMX)
         # Un .rbxmx fără placeholder (loader vechi) nu se schimbă nici cu token.
@@ -764,7 +778,9 @@ class StudioPluginTokenInstallTests(unittest.TestCase):
         self.assertEqual(self.install(UI_TOKEN), self.target)
         installed = self.target.read_bytes()
         self.assertEqual(installed, updater.inject_local_token(PACKAGED_RBXMX, UI_TOKEN))
-        self.assertNotIn(updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"), installed)
+        # Doar slotul devine tokenul; constanta din sursa loader-ului rămâne literalul.
+        self.assertEqual(installed.count(UI_TOKEN.encode("utf-8")), 1)
+        self.assertIn(b'local TOKEN_PLACEHOLDER = "' + updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8") + b'"', installed)
         self.assertEqual(self.source.read_bytes(), PACKAGED_RBXMX)
         self.assertEqual(self.backups_listing(), [])
         self.assertEqual(sorted(path.name for path in self.target.parent.iterdir()), ["StudioHarness.rbxmx"])
@@ -783,7 +799,7 @@ class StudioPluginTokenInstallTests(unittest.TestCase):
         self.assertEqual(self.target.read_bytes(), PACKAGED_RBXMX)
         self.assertEqual(self.backups_listing(), [])
         self.assertEqual(self.install(UI_TOKEN), self.target)
-        self.assertNotIn(updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"), self.target.read_bytes())
+        self.assertEqual(self.target.read_bytes().count(UI_TOKEN.encode("utf-8")), 1)
         self.assertEqual(len(self.backups_listing()), 1)
 
     def test_an_invalid_token_stops_the_install_before_anything_is_written(self):

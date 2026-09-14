@@ -30,6 +30,11 @@ PLACEHOLDER = "OWNER"
 # 1.0: `build_studio_plugin.py` pune în .rbxmx un StringValue `LocalToken` cu această valoare; la instalare este înlocuită cu
 # conținutul lui `local-token`, ca loader-ul din Studio să se conecteze singur la daemon (fără cod de asociere tastat).
 LOCAL_TOKEN_PLACEHOLDER = "STUDIO_HARNESS_LOCAL_TOKEN_PLACEHOLDER"
+# Slotul din .rbxmx în care intră tokenul la instalare: exclusiv valoarea `StringValue`-ului `LocalToken`.
+LOCAL_TOKEN_SLOT = re.compile(
+    rb'(<string name="Name">LocalToken</string>\s*<string name="Value">)'
+    + re.escape(LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"))
+    + rb'(</string>)')
 STUDIO_APP_DIR_VARIABLE = "STUDIO_HARNESS_STUDIO_APP_DIR"
 INSTALLED_LOADER_FILE = "installed-loader.txt"
 MAX_MODULE_BYTES = 2 * 1024 * 1024
@@ -272,7 +277,11 @@ def studio_plugins_dir(environ: dict[str, str] | None = None) -> Path | None:
 
 
 def inject_local_token(data: bytes, local_token: str | None) -> bytes:
-    """Conținutul .rbxmx-ului cu placeholder-ul `LocalToken` înlocuit de tokenul UI; neschimbat fără token sau fără placeholder.
+    """Conținutul .rbxmx-ului cu placeholder-ul `LocalToken` înlocuit de tokenul UI; neschimbat fără token sau fără slot.
+
+    Substituția atinge DOAR valoarea `StringValue`-ului `LocalToken`. Loader-ul și `BridgeController` păstrează același
+    șir ca literal în cod (`TOKEN_PLACEHOLDER`), ca să respingă un plugin neinstalat: o înlocuire globală l-ar preface
+    în tokenul real, iar pluginul și-ar respinge propriul cod și nu s-ar mai conecta niciodată.
 
     Tokenul are doar caractere URL-safe (`local_state.TOKEN_PATTERN`), deci nu are nevoie de escapare XML; orice altceva
     este refuzat, ca fișierul instalat să rămână un XML valid."""
@@ -280,7 +289,12 @@ def inject_local_token(data: bytes, local_token: str | None) -> bytes:
         return data
     if not isinstance(local_token, str) or not LOCAL_TOKEN_PATTERN.fullmatch(local_token):
         raise UpdateError("Codul local nu are formatul așteptat; pluginul nu a fost instalat.")
-    return data.replace(LOCAL_TOKEN_PLACEHOLDER.encode("utf-8"), local_token.encode("utf-8"))
+    found = LOCAL_TOKEN_SLOT.findall(data)
+    if not found:
+        return data
+    if len(found) > 1:
+        raise UpdateError("Pachetul pluginului are mai multe valori LocalToken; nu injectez codul local.")
+    return LOCAL_TOKEN_SLOT.sub(lambda match: match.group(1) + local_token.encode("utf-8") + match.group(2), data)
 
 
 def install_studio_plugin(source: Path, backup_root: Path, environ: dict[str, str] | None = None,

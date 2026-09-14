@@ -65,9 +65,21 @@ if (-not $token) {
 }
 
 # Conținutul instalat: pachetul din dist/ (doar placeholder) cu tokenul injectat; dist/ rămâne neatins.
+# Se înlocuiește DOAR valoarea StringValue-ului LocalToken: loader-ul și BridgeController păstrează același șir ca literal
+# în cod, ca să respingă un plugin neinstalat, iar o înlocuire globală l-ar preface în tokenul real — pluginul și-ar
+# respinge propriul cod și nu s-ar mai conecta.
 $packaged = [IO.File]::ReadAllText($source, [Text.Encoding]::UTF8)
-$tokenInjected = $packaged.Contains($tokenPlaceholder)
-$installed = $packaged.Replace($tokenPlaceholder, $token)
+$tokenSlot = '(<string name="Name">LocalToken</string>\s*<string name="Value">)' + [Regex]::Escape($tokenPlaceholder) + '(</string>)'
+$slotCount = ([Regex]::Matches($packaged, $tokenSlot)).Count
+if ($slotCount -gt 1) {
+    throw 'Pachetul pluginului are mai multe valori LocalToken; nu injectez codul local.'
+}
+$tokenInjected = $slotCount -eq 1
+if ($tokenInjected) {
+    $installed = [Regex]::Replace($packaged, $tokenSlot, { param($m) $m.Groups[1].Value + $token + $m.Groups[2].Value })
+} else {
+    $installed = $packaged
+}
 $installedBytes = $utf8NoBom.GetBytes($installed)
 $sha256 = [Security.Cryptography.SHA256]::Create()
 try {

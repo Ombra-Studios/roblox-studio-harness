@@ -23,6 +23,8 @@ from urllib.request import Request, urlopen
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+# Slotul din .rbxmx pe care instalarea îl umple cu tokenul UI (restul fișierului rămâne neatins).
+SLOT_OPEN = b'<string name="Name">LocalToken</string><string name="Value">'
 sys.path.insert(0, str(ROOT / "scripts"))
 import studio_bridge
 import team_hub
@@ -1310,7 +1312,7 @@ class UpdateTests(unittest.TestCase):
 
     def test_apply_waits_for_active_jobs_then_installs_with_backup_and_the_local_token(self):
         placeholder = updater.LOCAL_TOKEN_PLACEHOLDER.encode("utf-8")
-        manifest, _ = self.publish("1.1.0", rbxmx=b"<roblox>nou " + placeholder + b"</roblox>")
+        manifest, _ = self.publish("1.1.0", rbxmx=b'<roblox>nou ' + SLOT_OPEN + placeholder + b'</string></roblox>')
         job = self.running_job()
         self.assertFalse(self.bridge.update_apply(manifest))
         self.assertEqual(self.bridge.update_status()["state"], "idle")
@@ -1330,8 +1332,8 @@ class UpdateTests(unittest.TestCase):
         plugin = self.local / "Roblox" / "Plugins" / "StudioHarness.rbxmx"
         if os.name == "nt":
             # 1.0: fișierul instalat primește tokenul UI în locul placeholder-ului; pachetul din dist/ rămâne cu placeholder-ul.
-            self.assertEqual(plugin.read_bytes(), b"<roblox>nou " + UI_TOKEN.encode("utf-8") + b"</roblox>")
-            self.assertEqual((self.root / "dist" / "StudioHarness.rbxmx").read_bytes(), b"<roblox>nou " + placeholder + b"</roblox>")
+            self.assertEqual(plugin.read_bytes(), b'<roblox>nou ' + SLOT_OPEN + UI_TOKEN.encode("utf-8") + b'</string></roblox>')
+            self.assertEqual((self.root / "dist" / "StudioHarness.rbxmx").read_bytes(), b'<roblox>nou ' + SLOT_OPEN + placeholder + b'</string></roblox>')
             self.assertIn("repornește Studio", status["message"])
         else:
             self.assertFalse(plugin.exists())
