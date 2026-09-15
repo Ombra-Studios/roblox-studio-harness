@@ -82,6 +82,9 @@ MAX_NAME = 64
 HUB_DOWN = "Hub-ul nu răspunde; claims-urile sunt locale până revine."
 HUB_UNREACHABLE = "Hub-ul nu răspunde."
 HUB_OLD = "Hub-ul rulează o versiune mai veche."
+# Un hub 0.8 la aceeași adresă nu cunoaște `/hub/*`: după server răspunde 404 (rută necunoscută), 405 (metoda nu este
+# permisă pe calea aceea) sau 501. Toate înseamnă același lucru pentru noi: hub vechi, nu o pană de rețea.
+OLD_HUB_STATUS = frozenset({404, 405, 501})
 HUB_RESTARTED = "Hub-ul a fost repornit; reînregistrare."
 HUB_INVALID = "Răspuns invalid de la hub."
 HUB_DISABLED = "Hub dezactivat (daemon pornit cu --no-hub)."
@@ -378,7 +381,7 @@ class HubClient(threading.Thread):
             elif error.unreachable:
                 self._enter_locked("offline", HUB_UNREACHABLE)
             elif phase != "call":
-                self._enter_locked("offline", HUB_OLD if error.status == 404 else str(error))
+                self._enter_locked("offline", HUB_OLD if error.status in OLD_HUB_STATUS else str(error))
         self._notify()
 
     def _call(self, method: str, path: str, body: dict[str, Any] | None = None, timeout: float = 10.0,

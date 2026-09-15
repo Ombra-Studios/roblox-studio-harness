@@ -25,7 +25,7 @@ from updater import UpdateError
 
 PLACEHOLDER_URL = "https://huggingface.co/spaces/OWNER/studio-harness/resolve/main/releases/manifest.json"
 HTTPS_URL = "https://huggingface.co/spaces/ana/studio-harness/resolve/main/releases/manifest.json"
-PUBLIC_URL = "https://lostcube.pro/roblox/harness/releases/manifest.json"
+PUBLIC_URL = "https://lostcube.pro/releases/manifest.json"
 
 
 class LocalChannel:
@@ -441,9 +441,9 @@ class DownloadTests(unittest.TestCase):
 
 
 class MirrorTests(unittest.TestCase):
-    """0.8: hub-ul găzduit oglindește pachetele din upstream (Hugging Face) în `releases/`, servit apoi la https://lostcube.pro/roblox/harness/releases/."""
+    """0.8: hub-ul găzduit oglindește pachetele din upstream (Hugging Face) în `releases/`, servit apoi la https://lostcube.pro/releases/."""
 
-    PUBLIC_BASE = "https://lostcube.pro/roblox/harness/releases"
+    PUBLIC_BASE = "https://lostcube.pro/releases"
     PLUGIN_NAME = "roblox-studio-harness-9.9.9.zip"
     HUB_NAME = "studio-harness-hub-9.9.9-ubuntu.zip"
 

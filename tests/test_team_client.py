@@ -321,6 +321,11 @@ class FakeHub:
                     mode = hub.mode
                 if mode == "old404":
                     return self._send(404, {"ok": False, "error": "Rută inexistentă."})
+                if mode == "old405":
+                    # Hub-ul 0.8 de pe lostcube.pro răspunde 405 la `POST /hub/register`: calea nu are metoda aceea.
+                    return self._send(405, {"ok": False, "error": "Metodă nepermisă."})
+                if mode == "old501":
+                    return self._send(501, {"ok": False, "error": "Neimplementat."})
                 if mode == "old401":
                     # Hub-ul 0.8 refuză orice rută fără tokenul echipei, fără câmpul `status`.
                     return self._send(401, {"ok": False, "error": "Tokenul echipei este invalid."})
@@ -521,7 +526,8 @@ class StateMachineTests(ClientBase):
         self.assertEqual((client.snapshot(), client.expire(), client.held_by("job")), ([], [], []))
 
     def test_old_hub_is_offline_with_the_version_message(self):
-        for mode in ("old404", "old401"):
+        # 404 (rută necunoscută), 405 (metoda nu e permisă pe cale, ca hub-ul 0.8 de pe lostcube.pro) și 501 înseamnă la fel: hub vechi.
+        for mode in ("old404", "old405", "old501", "old401"):
             with self.subTest(mode=mode):
                 self.hub.mode = mode
                 client = self.client()

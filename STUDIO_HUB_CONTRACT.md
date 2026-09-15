@@ -6,7 +6,7 @@ Limba: texte UI, mesaje de eroare, comentarii și documente în română cu diac
 
 ## 0. Ce este 1.0 și ce rămâne din 0.8
 
-Studio Harness 1.0 = plugin Roblox Studio (Luau: loader cu hot swap + aplicație) + daemon local Python (`127.0.0.1:34871`) care rulează Claude Code / Codex din terminalul developerului sau din Studio + hub central Python (implicit `https://lostcube.pro/roblox/harness`) + panou web servit de hub.
+Studio Harness 1.0 = plugin Roblox Studio (Luau: loader cu hot swap + aplicație) + daemon local Python (`127.0.0.1:34871`) care rulează Claude Code / Codex din terminalul developerului sau din Studio + hub central Python (implicit `https://lostcube.pro`) + panou web servit de hub.
 
 Schimbări față de 0.8:
 
@@ -396,13 +396,13 @@ Despachetarea (`updater._members`) elimină folderul de top al arhivei și refuz
 `python scripts/studio_bridge.py [--port 34871] [--runtime-dir DIR] [--state-dir DIR] [--no-hub]`
 
 1. `token = ensure_local_token(state)`; `device_token = ensure_device_token(state)`.
-2. `hub_url`: `local_state.resolve_hub_url(state)` — env `STUDIO_HARNESS_HUB_URL` → `config.json["hub_url"]` → `DEFAULT_HUB_URL = "https://lostcube.pro/roblox/harness"`; `hub_source` ∈ `env | config | default` (sau `explicit` / `no-hub` când `Bridge` primește direct `hub_url`). Se acceptă `https://` către orice gazdă și `http://` doar către `127.0.0.1`/`localhost`; bara finală se elimină (§1.1). `--no-hub` sau o valoare setată și respinsă → `hub.status = "disabled"`, cu `error = "hub_url invalid (sursa: env|config)"` pentru a doua situație și `"Hub dezactivat (daemon pornit cu --no-hub)."` pentru prima.
+2. `hub_url`: `local_state.resolve_hub_url(state)` — env `STUDIO_HARNESS_HUB_URL` → `config.json["hub_url"]` → `DEFAULT_HUB_URL = "https://lostcube.pro"`; `hub_source` ∈ `env | config | default` (sau `explicit` / `no-hub` când `Bridge` primește direct `hub_url`). Se acceptă `https://` către orice gazdă și `http://` doar către `127.0.0.1`/`localhost`; bara finală se elimină (§1.1). `--no-hub` sau o valoare setată și respinsă → `hub.status = "disabled"`, cu `error = "hub_url invalid (sursa: env|config)"` pentru a doua situație și `"Hub dezactivat (daemon pornit cu --no-hub)."` pentru prima.
 3. `HubClient` (§5) pornește într-un fir separat; claims-urile sunt delegate hub-ului când `status == "approved"`, altfel unei `ClaimTable` locale (§6.3).
 4. Stdout la pornire: versiune, URL local, calea `local-token` și `device-token` (nu conținutul), URL-ul hub-ului, „Pluginul Studio se conectează automat cu tokenul instalat”.
 5. `team.json` este ignorat: dacă fișierul există, daemon-ul scrie **o singură dată** în log „team.json nu mai este folosit din 1.0: fișierul este ignorat (identitatea vine de la contul Roblox, accesul din tokenul de dispozitiv).” Fără `developer_name`: `developer` = numele Roblox din identitate (`user_id > 0`), altfel `machine`.
 6. Constructorul: `Bridge(providers, runtime_dir=None, native=None, token=None, developer=None, state_directory=None, *, hub_url=UNSET, device_token=None, hub_client_factory=None, open_url=None, logger=None)`. `hub_url=UNSET` (implicit) rezolvă adresa ca la punctul 2; `hub_url=None` = `--no-hub`; un text = `explicit`. `hub_client_factory(bridge, hub_url, device_token, machine, disabled_error=…)` și `open_url` (implicit `webbrowser.open`) sunt injectabile pentru teste — testele nu ating hub-ul real.
 
-Stările hub-ului (`hub.status`): `connecting` (prima înregistrare în curs) → `pending` (202; reîncearcă `register` la 15 s) → `approved` (sync la 2 s) / `offline` (rețea, 5xx sau 404 pe `/hub/*`; backoff 2 → 4 → 8 → 16 → 30 s) / `revoked` (403 revoked; reîncearcă la 60 s) / `disabled`. La 404 `error = "Hub-ul rulează o versiune mai veche."`; la 401 `unknown` clientul se reînregistrează imediat.
+Stările hub-ului (`hub.status`): `connecting` (prima înregistrare în curs) → `pending` (202; reîncearcă `register` la 15 s) → `approved` (sync la 2 s) / `offline` (rețea, 5xx sau 404/405/501 pe `/hub/*`; backoff 2 → 4 → 8 → 16 → 30 s) / `revoked` (403 revoked; reîncearcă la 60 s) / `disabled`. La 404, 405 sau 501 `error = "Hub-ul rulează o versiune mai veche."`; la 401 `unknown` clientul se reînregistrează imediat.
 
 ### 4.2 HTTP local (`http://127.0.0.1:34871`)
 
@@ -445,9 +445,9 @@ Erori: `{"ok": false, "error": "…"}` cu 400/401/403/404/409/410/413/415/429/50
  "developer": "ellob", "machine": "PC-ELLOB",
  "identity": {"user_id": 12345, "name": "ellob", "avatar": "rbxthumb://type=AvatarHeadShot&id=12345&w=48&h=48"},
  "workspace": {"key": "game:987654", "game_id": 987654, "place_id": 1291603, "name": "Ball", "creator_id": 555, "creator_type": "User"},
- "hub": {"url": "https://lostcube.pro/roblox/harness", "status": "approved", "hub_id": "<32 hex>", "device_id": "<16 hex>",
+ "hub": {"url": "https://lostcube.pro", "status": "approved", "hub_id": "<32 hex>", "device_id": "<16 hex>",
          "error": null, "last_sync": 1726000300.0, "enrollment": "approve"},
- "panel_url": "https://lostcube.pro/roblox/harness/panel",
+ "panel_url": "https://lostcube.pro/panel",
  "members": [{"device_id": "…", "roblox_user_id": 12345, "roblox_name": "ellob", "machine": "PC-ELLOB", "last_seen": 0, "online": true, "me": true}],
  "workspaces": [{"key": "game:987654", "name": "Ball", "members_online": 2, "sessions_active": 1, "claims": 0, "mine": true}],
  "update": {"current": "1.0.0", "available": null, "state": "idle", "message": "", "checked": null, "restart_required": false},
@@ -552,7 +552,7 @@ Un răspuns 2xx care nu este un obiect JSON dă `HubError` 502 „Răspuns inval
 
 Ciclul:
 
-1. `register()` cu `{roblox, machine, bridge_id, version, workspace}` din `bridge.identity_payload()`. 200 → `approved`; 202 → `pending` (reîncearcă la `pending_interval`); 403 revoked → `revoked` (`revoked_interval`); 404/5xx/rețea → `offline` (backoff `backoff_start` → `backoff_max`; 404 cu mesajul „Hub-ul rulează o versiune mai veche.”). Un **401 la `register`** înseamnă hub incompatibil: `offline`, cu „Hub-ul rulează o versiune mai veche.” când răspunsul nu are `status` (hub 0.8) și cu mesajul hub-ului când îl are. Un 401 în orice altă fază (sync, claims) → `connecting` și reînregistrare imediată.
+1. `register()` cu `{roblox, machine, bridge_id, version, workspace}` din `bridge.identity_payload()`. 200 → `approved`; 202 → `pending` (reîncearcă la `pending_interval`); 403 revoked → `revoked` (`revoked_interval`); 404/405/501/5xx/rețea → `offline` (backoff `backoff_start` → `backoff_max`; 404, 405 și 501 cu mesajul „Hub-ul rulează o versiune mai veche.”). Un **401 la `register`** înseamnă hub incompatibil: `offline`, cu „Hub-ul rulează o versiune mai veche.” când răspunsul nu are `status` (hub 0.8) și cu mesajul hub-ului când îl are. Un 401 în orice altă fază (sync, claims) → `connecting` și reînregistrare imediată.
 2. În `approved`: `sync_once()` la `interval` (2 s) cât timp `bridge.plugin_connected()` sau există sesiuni `terminal` deschise, altfel `idle_interval` (5 s); `wake()` forțează un ciclu imediat (identitate/workspace schimbate, jurnal nou, proiect nou, sesiune nouă a unui coleg).
 3. Corpul sync-ului: `bridge.hub_payload(pushed)` (sesiuni proprii + evenimente noi după cursoarele `pushed`), `want` (cursoarele sesiunilor remote), `journal` (coada locală), `journal_after`, `touch`, `project_digest`, `project` (o dată, după `want_project`), `workspace` (**obligatoriu** — lipsa cheii dă 400), `roblox` (când s-a schimbat). La schimbarea cheii workspace-ului, `journal_after` se resetează la 0, ca hub-ul să trimită ultimele 50 de intrări ale **noului** workspace, nu doar ce e mai nou decât cursorul vechi. La eroare, jurnalul și touch-urile revin în coadă.
 4. Răspuns → oglinda locală: `remote_sessions`, `remote_events` (≤ 1024 per job), `claim_rows` + `held` (per job), `journal` (≤ 500, cursor `journal_seq`), `members`, `workspaces`, `want_project`, `hub_id`, `device_status`. `hub_id` diferit → reînregistrare, cursoare 0. 403 `pending`/`revoked` la sync → starea corespunzătoare.
@@ -733,7 +733,7 @@ Scanare la conectare, la 30 s dacă s-a schimbat (număr de instanțe + sumă a 
            "studio_app": {"url": "…/studio-harness-app-1.0.0.zip", "sha256": "<64 hex>", "size": 1}}}
 ```
 
-`update-channel.json` (neschimbat): `manifest_url` = `https://lostcube.pro/roblox/harness/releases/manifest.json` (canalul public al hub-ului), `upstream_manifest_url` = raw GitHub (`https://raw.githubusercontent.com/OWNER/REPO/BRANCH/releases/manifest.json`), `auto`, `github_repo`. Ordinea: hub-ul se actualizează primul din upstream și oglindește în `/releases/`; daemon-ii se actualizează de la hub. URL-urile acceptate: `https://`, `http://127.0.0.1:`, `http://localhost:`.
+`update-channel.json` (neschimbat): `manifest_url` = `https://lostcube.pro/releases/manifest.json` (canalul public al hub-ului), `upstream_manifest_url` = raw GitHub (`https://raw.githubusercontent.com/OWNER/REPO/BRANCH/releases/manifest.json`), `auto`, `github_repo`. Ordinea: hub-ul se actualizează primul din upstream și oglindește în `/releases/`; daemon-ii se actualizează de la hub. URL-urile acceptate: `https://`, `http://127.0.0.1:`, `http://localhost:`.
 
 ### 10.2 Publicare (`scripts/publish_release.py`)
 
@@ -783,7 +783,7 @@ Coduri HTTP folosite de hub și daemon:
 
 ## 12. Compatibilitate și migrare de la 0.8
 
-- Hub 1.0 ↔ daemon 0.8: daemon-ul vechi cere `/team/*` → 404 și rămâne „solo”; mesajul lui spune că hub-ul nu răspunde. Daemon 1.0 ↔ hub 0.8: 404 pe `/hub/*` **sau** 401 fără `status` în corp → `offline`, `error = "Hub-ul rulează o versiune mai veche."`, claims locale.
+- Hub 1.0 ↔ daemon 0.8: daemon-ul vechi cere `/team/*` → 404 și rămâne „solo”; mesajul lui spune că hub-ul nu răspunde. Daemon 1.0 ↔ hub 0.8: 404, 405 sau 501 pe `/hub/*` **sau** 401 fără `status` în corp → `offline`, `error = "Hub-ul rulează o versiune mai veche."`, claims locale.
 - Starea `hub-state.json` 0.8 (`format: 1`) se ignoră (doar `hub_id` se păstrează). Toate dispozitivele apar ca `pending` la prima conectare 1.0 (sau `approved` cu `--open-enrollment`).
 - Loader 1.0.0 (instalat de 0.8) cu aplicația 1.0.0 (hot swap): nu are `LocalToken`, dar setarea `StudioHarnessBridgeToken` salvată în 0.8 rămâne valabilă; utilizatorul repornește Studio o dată după instalarea loader-ului 1.1.0.
 - `team.json` este ignorat; `Setup-Team.cmd`, `setup-team.ps1`, `Start-Team-Hub.cmd` sunt eliminate din repo și din pachete.

@@ -78,7 +78,7 @@ TEXT_SUFFIXES = {".py", ".md", ".json", ".toml", ".txt", ".cmd", ".ps1", ".sh", 
 # Doar pentru scanare: chei și certificate nu se împachetează niciodată, dar `git add -A` le-ar publica, deci trebuie citite.
 SCAN_SUFFIXES = TEXT_SUFFIXES | {".pem", ".key", ".crt", ".cer", ".env"}
 
-PUBLIC_CHANNEL = "https://lostcube.pro/roblox/harness/releases/manifest.json"
+PUBLIC_CHANNEL = "https://lostcube.pro/releases/manifest.json"
 REPO_PATTERN = re.compile(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+")
 BRANCH_PATTERN = re.compile(r"[A-Za-z0-9._/-]{1,120}")
 FROM_CHANNEL = "@update-channel"

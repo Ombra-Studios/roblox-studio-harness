@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
 
-DEFAULT_HUB_URL = "https://lostcube.pro/roblox/harness"
+DEFAULT_HUB_URL = "https://lostcube.pro"
 HUB_URL_ENV = "STUDIO_HARNESS_HUB_URL"
 MAX_HUB_URL = 512
 # Singurele gazde acceptate fără TLS: hub-ul de dezvoltare/test de pe același PC.

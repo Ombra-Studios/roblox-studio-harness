@@ -1,6 +1,6 @@
 @echo off
 rem Hub local Studio Harness (scripts\team_hub.py, port 34880), pentru self-hosting sau teste. Hub-ul central
-rem https://lostcube.pro/roblox/harness nu are nevoie de el: daemon-ul se conecteaza acolo singur, fara configurare.
+rem https://lostcube.pro nu are nevoie de el: daemon-ul se conecteaza acolo singur, fara configurare.
 rem Un daemon de pe acest PC il foloseste cu {"hub_url": "http://127.0.0.1:34880"} in %LOCALAPPDATA%\StudioHarness\config.json
 rem sau cu STUDIO_HARNESS_HUB_URL; din LAN/internet doar prin HTTPS (reverse proxy, vezi deploy\ubuntu).
 rem Implicit hub-ul asculta doar pe 127.0.0.1; expunerea in retea se cere explicit (Start-Hub.cmd --listen 0.0.0.0)

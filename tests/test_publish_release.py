@@ -379,7 +379,7 @@ class MainTests(unittest.TestCase):
 
     def test_set_channel_keeps_the_public_channel_and_writes_the_hf_upstream(self):
         # 0.8: developerii și hub-ul găzduit folosesc canalul public (lostcube.pro); Hugging Face rămâne upstream-ul din care hub-ul oglindește.
-        self.assertEqual(PUBLIC_CHANNEL, "https://lostcube.pro/roblox/harness/releases/manifest.json")
+        self.assertEqual(PUBLIC_CHANNEL, "https://lostcube.pro/releases/manifest.json")
         self.assertEqual(json.loads((ROOT / "update-channel.json").read_text(encoding="utf-8"))["manifest_url"], PUBLIC_CHANNEL)
         # Placeholder OWNER în fișier: canalul public devine cel implicit, upstream-ul este repo-ul HF.
         self.assertIn(b"OWNER", self.repo.channel())

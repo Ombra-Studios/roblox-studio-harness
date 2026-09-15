@@ -269,8 +269,8 @@ class DeployFilesTests(unittest.TestCase):
         self.assertIn("Dispozitive", installer)
         self.assertIn("--approve-pending", installer)
         self.assertIn("--open-enrollment", installer)
-        self.assertIn("/roblox/harness/panel", installer)
-        self.assertIn("https://lostcube.pro/roblox/harness", installer)
+        self.assertIn("https://<domeniul-tău>/panel", installer)
+        self.assertIn("https://lostcube.pro", installer)
         self.assertIn("config.json", installer)
         self.assertIn("STUDIO_HARNESS_HUB_URL", installer)
         self.assertIn("--listen $LISTEN", installer)
@@ -279,25 +279,27 @@ class DeployFilesTests(unittest.TestCase):
             self.assertNotIn(term, installer)
 
     def test_reverse_proxies_installer_and_channel_point_at_lostcube(self):
-        # Hub-ul găzduit rulează pe lostcube.pro sub /roblox/harness/ și servește canalul de actualizare la /releases/ din $APP_DIR/releases.
+        # Hub-ul găzduit rulează la rădăcina lui lostcube.pro și servește canalul de actualizare la /releases/ din $APP_DIR/releases.
         caddy = read(DEPLOY / "Caddyfile")
         self.assertIn("lostcube.pro {", caddy)
         self.assertIn("reverse_proxy 127.0.0.1:34880", caddy)
-        # Proxy-ul scoate prefixul (handle_path / proxy_pass cu `/`), iar /roblox/harness trimite la panou.
-        self.assertIn("handle_path /roblox/harness/* {", caddy)
-        self.assertIn("redir /roblox/harness /roblox/harness/panel 302", caddy)
+        # Calea ajunge neatinsă la hub: fără handle_path și fără redirect de prefix.
+        self.assertNotIn("handle_path /roblox/harness", caddy)
+        self.assertNotIn("redir ", caddy)
         self.assertIn("response_header_timeout 90s", caddy)
         self.assertEqual(caddy.count("{"), caddy.count("}"))
         nginx = read(DEPLOY / "nginx-hub.conf")
         self.assertIn("server_name lostcube.pro;", nginx)
         self.assertIn("/etc/letsencrypt/live/lostcube.pro/", nginx)
-        self.assertIn("location /roblox/harness/ {", nginx)
-        self.assertIn("proxy_pass http://127.0.0.1:34880/;", nginx)
-        self.assertIn("location = /roblox/harness { return 302 /roblox/harness/panel; }", nginx)
+        self.assertIn("location / {", nginx)
+        self.assertIn("proxy_pass http://127.0.0.1:34880;", nginx)
+        self.assertNotIn("return 302", nginx)
         self.assertIn("proxy_read_timeout 90s;", nginx)
         self.assertEqual(nginx.count("{"), nginx.count("}"))
+        # Prefixul rămâne acceptat de hub, pentru instalările care îl pun sub o cale; nu mai este folosit pe lostcube.pro.
         self.assertEqual(team_hub.BASE_PATH, "/roblox/harness")
         self.assertEqual(team_hub.strip_base("/roblox/harness/hub/status"), "/hub/status")
+        self.assertEqual(team_hub.strip_base("/hub/status"), "/hub/status")
         # Panoul servit sub prefix cere /hub/... relativ la pagina lui, nu de la rădăcina domeniului.
         panel = read(ROOT / "panel" / "index.html")
         self.assertIn("BASE_PATH", panel)
@@ -310,9 +312,9 @@ class DeployFilesTests(unittest.TestCase):
         self.assertIn("-o studio-harness -g studio-harness", installer[installer.index('"$APP_DIR/releases"'):][:400])
         self.assertLess(installer.index('"$APP_DIR/releases"'), installer.index("systemctl daemon-reload"))
         channel = json.loads(read(ROOT / "update-channel.json"))
-        self.assertEqual(channel["manifest_url"], "https://lostcube.pro/roblox/harness/releases/manifest.json")
+        self.assertEqual(channel["manifest_url"], "https://lostcube.pro/releases/manifest.json")
         readme = read(DEPLOY / "README.md")
-        self.assertIn("https://lostcube.pro/roblox/harness/releases/", readme)
+        self.assertIn("https://lostcube.pro/releases/", readme)
         self.assertIn("upstream_manifest_url", readme)
 
     def test_dockerfiles_take_the_admin_code_from_the_environment_without_embedding_it(self):
@@ -391,7 +393,7 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("hub-admin-token", text)
         self.assertIn("config.json", text)
         self.assertIn("STUDIO_HARNESS_HUB_URL", text)
-        self.assertIn("https://lostcube.pro/roblox/harness", text)
+        self.assertIn("https://lostcube.pro", text)
         for term in TEAM_ERA_TERMS:
             self.assertNotIn(term, text)
 

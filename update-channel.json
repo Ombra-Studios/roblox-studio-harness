@@ -1,5 +1,5 @@
 {
- "manifest_url": "https://lostcube.pro/roblox/harness/releases/manifest.json",
+ "manifest_url": "https://lostcube.pro/releases/manifest.json",
  "upstream_manifest_url": "https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/manifest.json",
  "auto": true,
  "github_repo": "Ombra-Studios/roblox-studio-harness",

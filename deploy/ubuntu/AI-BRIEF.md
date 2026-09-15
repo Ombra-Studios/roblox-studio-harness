@@ -13,8 +13,8 @@ Acest fișier este scris pentru un agent AI (Claude Code, Codex sau similar) car
 ## Ce trebuie să obții la final
 
 1. `studio-harness-hub.service` activ, pornit la boot, ascultând pe `127.0.0.1:34880`.
-2. HTTPS public pe un domeniu (de exemplu `lostcube.pro`) prin Caddy sau nginx, care face proxy către `127.0.0.1:34880` și scoate prefixul `/roblox/harness`.
-3. `curl https://lostcube.pro/roblox/harness/healthz` → `{"ok": true, "version": "1.0.0"}`.
+2. HTTPS public pe un domeniu (de exemplu `lostcube.pro`) prin Caddy sau nginx, care face proxy către `127.0.0.1:34880` cu calea neatinsă.
+3. `curl https://lostcube.pro/healthz` → `{"ok": true, "version": "1.0.0"}`.
 4. Codul de administrator transmis persoanei care a trimis pachetul **printr-un canal sigur**, împreună cu URL-ul și cu explicația de la secțiunea „Ce raportezi la final”.
 
 ## Pași
@@ -35,8 +35,8 @@ sudo ufw allow 80/tcp && sudo ufw allow 443/tcp   # dacă ufw este activ
 #    Varianta nginx: deploy/nginx-hub.conf + certbot (vezi README.md)
 
 # 3. Verificare din afară
-curl -s https://lostcube.pro/roblox/harness/healthz
-curl -s -o /dev/null -w "%{http_code}\n" https://lostcube.pro/roblox/harness/hub/status   # 401 fără antete = corect
+curl -s https://lostcube.pro/healthz
+curl -s -o /dev/null -w "%{http_code}\n" https://lostcube.pro/hub/status   # 401 fără antete = corect
 
 # 4. Codul de administrator
 sudo cat /var/lib/studio-harness/hub-admin-token
@@ -59,11 +59,11 @@ Cerințe prealabile: un record DNS A/AAAA pentru domeniu către server, porturil
 | --- | --- |
 | `systemctl is-active studio-harness-hub` | `active` |
 | `curl -s http://127.0.0.1:34880/healthz` | `{"ok": true, "version": "1.0.0"}` |
-| `curl -s https://lostcube.pro/roblox/harness/healthz` | același răspuns, prin HTTPS |
-| `curl -s -o /dev/null -w "%{http_code}" https://lostcube.pro/roblox/harness/hub/status` | `401` |
-| `curl -s -H "X-Studio-Harness-Admin: $(sudo cat /var/lib/studio-harness/hub-admin-token)" https://lostcube.pro/roblox/harness/hub/status` | `{"ok": true, "version": "1.0.0", "hub_id": "...", "enrollment": "approve", "admin": true, "device": null, "workspaces": 0, "members_online": 0}` |
-| `curl -s -o /dev/null -w "%{http_code}" https://lostcube.pro/roblox/harness/panel` | `200` (pagina este publică; datele din ea cer un cod) |
-| `curl -s -o /dev/null -w "%{http_code}" https://lostcube.pro/roblox/harness/releases/manifest.json` | `200` dacă pachetul a venit cu `releases/`, altfel `404` |
+| `curl -s https://lostcube.pro/healthz` | același răspuns, prin HTTPS |
+| `curl -s -o /dev/null -w "%{http_code}" https://lostcube.pro/hub/status` | `401` |
+| `curl -s -H "X-Studio-Harness-Admin: $(sudo cat /var/lib/studio-harness/hub-admin-token)" https://lostcube.pro/hub/status` | `{"ok": true, "version": "1.0.0", "hub_id": "...", "enrollment": "approve", "admin": true, "device": null, "workspaces": 0, "members_online": 0}` |
+| `curl -s -o /dev/null -w "%{http_code}" https://lostcube.pro/panel` | `200` (pagina este publică; datele din ea cer un cod) |
+| `curl -s -o /dev/null -w "%{http_code}" https://lostcube.pro/releases/manifest.json` | `200` dacă pachetul a venit cu `releases/`, altfel `404` |
 | `sudo journalctl -u studio-harness-hub -n 20` | liniile „ascultă pe http://127.0.0.1:34880”, calea codului de administrator și modul de înrolare, fără niciun cod |
 | `sudo ss -ltnp \| grep 34880` | legat doar pe `127.0.0.1` |
 | `sudo ls -l /var/lib/studio-harness` | `hub-admin-token` și (după primul minut de rulare) `hub-state.json`, drepturi 0700 pentru director |
@@ -90,7 +90,7 @@ Cererile cu antet `Origin` străin sunt refuzate cu 403. Panoul web este singura
 
 ## Ce raportezi la final
 
-1. URL-ul HTTPS al hub-ului și al panoului (`.../roblox/harness/panel`).
+1. URL-ul HTTPS al hub-ului și al panoului (`https://domeniu/panel`).
 2. Rezultatul verificărilor de acceptanță și varianta de proxy folosită.
 3. Orice linie scoasă din unitatea systemd.
 4. Canalul prin care ai transmis codul de administrator — **fără codul însuși în raport**.

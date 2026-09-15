@@ -214,13 +214,13 @@ class HubUrlTests(unittest.TestCase):
         (directory / "config.json").write_text(json.dumps({"hub_url": value}), encoding="utf-8")
 
     def test_default_is_the_hosted_hub_without_trailing_slash(self):
-        self.assertEqual(local_state.DEFAULT_HUB_URL, "https://lostcube.pro/roblox/harness")
+        self.assertEqual(local_state.DEFAULT_HUB_URL, "https://lostcube.pro")
         self.assertEqual(local_state.HUB_URL_ENV, "STUDIO_HARNESS_HUB_URL")
         with temp_dir() as temp:
-            self.assertEqual(local_state.hub_url(Path(temp), {}), "https://lostcube.pro/roblox/harness")
-            self.assertEqual(local_state.resolve_hub_url(Path(temp), {}), ("https://lostcube.pro/roblox/harness", "default"))
+            self.assertEqual(local_state.hub_url(Path(temp), {}), "https://lostcube.pro")
+            self.assertEqual(local_state.resolve_hub_url(Path(temp), {}), ("https://lostcube.pro", "default"))
             # Un director de stare inexistent este tot „fără config”.
-            self.assertEqual(local_state.hub_url(Path(temp) / "lipsa", {}), "https://lostcube.pro/roblox/harness")
+            self.assertEqual(local_state.hub_url(Path(temp) / "lipsa", {}), "https://lostcube.pro")
 
     def test_env_beats_config_which_beats_default(self):
         with temp_dir() as temp:
@@ -258,8 +258,8 @@ class HubUrlTests(unittest.TestCase):
 
     def test_normalize_accepts_https_anywhere_and_http_only_on_loopback(self):
         normalize = local_state.normalize_hub_url
-        self.assertEqual(normalize("https://lostcube.pro/roblox/harness/"), "https://lostcube.pro/roblox/harness")
-        self.assertEqual(normalize("https://lostcube.pro/roblox/harness///"), "https://lostcube.pro/roblox/harness")
+        self.assertEqual(normalize("https://lostcube.pro/"), "https://lostcube.pro")
+        self.assertEqual(normalize("https://lostcube.pro///"), "https://lostcube.pro")
         self.assertEqual(normalize("  https://hub.echipa.ro/  "), "https://hub.echipa.ro")
         self.assertEqual(normalize("https://hub.echipa.ro:8443/x"), "https://hub.echipa.ro:8443/x")
         self.assertEqual(normalize("HTTPS://Hub.Echipa.ro/"), "https://Hub.Echipa.ro")

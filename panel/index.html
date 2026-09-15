@@ -513,7 +513,7 @@ button.chip[aria-pressed="true"] { background: var(--raised); color: var(--text)
   var PANEL_INTERVAL = 2000, WAIT_INTERVAL = 5000, PROJECT_INTERVAL = 30000, SESSION_INTERVAL = 2000, PAGE = 50, ONLINE_SECONDS = 15;
   var HEX64 = /^[0-9a-f]{64}$/i;
   var DEMO = /(?:\?|&)demo=1(?:&|$)/.test(location.search);
-  // Panoul poate fi servit sub un prefix (https://lostcube.pro/roblox/harness/panel): rutele /hub/... se cer relativ la el.
+  // Panoul poate fi servit sub un prefix (https://lostcube.pro/panel): rutele /hub/... se cer relativ la el.
   var BASE_PATH = location.pathname.replace(/\/panel\/?$/, "").replace(/\/+$/, "");
   var ROLE_OF_STATE = { draft: "neutral", sending: "info", uncertain: "warning", queued: "info", running: "primary",
     waiting_approval: "warning", completed: "completed", failed: "danger", cancelled: "neutral", lost: "danger" };

@@ -64,7 +64,7 @@ else
   echo "Atenție: panel/index.html lipsește; /panel va răspunde 404 până la instalarea panoului." >&2
 fi
 install -m 0644 -o studio-harness -g studio-harness "$HERE/README.md" "$APP_DIR/README.md"
-# Canalul de actualizare servit de hub la https://lostcube.pro/roblox/harness/releases/ (pachetele + manifest.json), dacă vin cu pachetul.
+# Canalul de actualizare servit de hub la https://lostcube.pro/releases/ (pachetele + manifest.json), dacă vin cu pachetul.
 if [[ -d "$REPO/releases" ]]; then
   install -d -m 0755 -o studio-harness -g studio-harness "$APP_DIR/releases"
   for file in "$REPO"/releases/*; do
@@ -112,10 +112,10 @@ echo "    sau --open-enrollment în ExecStart, care forțează modul la fiecare 
 echo
 if [[ "$LISTEN" == "127.0.0.1" ]]; then
   echo "Hub-ul este accesibil doar local. Pune un reverse proxy HTTPS în față (deploy/ubuntu/Caddyfile sau nginx-hub.conf):"
-  echo "  panou:   https://<domeniul-tău>/roblox/harness/panel"
-  echo "  healthz: https://<domeniul-tău>/roblox/harness/healthz"
-  echo "Daemon-ii se conectează implicit la https://lostcube.pro/roblox/harness. Pentru alt domeniu, fiecare developer pune"
-  echo '  {"hub_url": "https://<domeniul-tău>/roblox/harness"} în %LOCALAPPDATA%\StudioHarness\config.json (sau STUDIO_HARNESS_HUB_URL).'
+  echo "  panou:   https://<domeniul-tău>/panel"
+  echo "  healthz: https://<domeniul-tău>/healthz"
+  echo "Daemon-ii se conectează implicit la https://lostcube.pro. Pentru alt domeniu, fiecare developer pune"
+  echo '  {"hub_url": "https://<domeniul-tău>"} în %LOCALAPPDATA%\StudioHarness\config.json (sau STUDIO_HARNESS_HUB_URL).'
 else
   echo "Hub-ul ascultă public pe portul $PORT (HTTP). Recomandat doar în LAN; pentru internet folosește HTTPS prin proxy."
   echo "Firewall: sudo ufw allow $PORT/tcp"

@@ -42,33 +42,33 @@ sudo certbot --nginx -d lostcube.pro
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Ambele configurații scot prefixul `/roblox/harness` înainte de proxy și lasă timeout-ul de citire la 90 s, pentru că `POST /hub/claims/wait` poate ține conexiunea deschisă până la 60 s. Hub-ul acceptă prefixul și dacă proxy-ul nu îl scoate.
+Ambele configurații trimit calea neatinsă către hub și lasă timeout-ul de citire la 90 s, pentru că `POST /hub/claims/wait` poate ține conexiunea deschisă până la 60 s. Dacă preferi hub-ul sub o cale (`https://domeniu/prefix/…`), pune-l acolo în proxy: hub-ul acceptă calea și cu prefix, și fără.
 
 Adrese publice după instalare:
 
 | Adresă | Rol |
 | --- | --- |
-| `https://lostcube.pro/roblox/harness/panel` | panoul web (pagina este publică; datele cer un dispozitiv aprobat sau codul de administrator) |
-| `https://lostcube.pro/roblox/harness/healthz` | verificare, fără antete |
-| `https://lostcube.pro/roblox/harness/releases/manifest.json` | canalul de actualizări |
-| `https://lostcube.pro/roblox/harness/hub/...` | API-ul dispozitivelor și al adminului |
-| `https://lostcube.pro/roblox/harness/hub/avatar?user=<id>` | avatarul Roblox pentru panou (public, fără antete; 204 la eșec) |
+| `https://lostcube.pro/panel` | panoul web (pagina este publică; datele cer un dispozitiv aprobat sau codul de administrator) |
+| `https://lostcube.pro/healthz` | verificare, fără antete |
+| `https://lostcube.pro/releases/manifest.json` | canalul de actualizări |
+| `https://lostcube.pro/hub/...` | API-ul dispozitivelor și al adminului |
+| `https://lostcube.pro/hub/avatar?user=<id>` | avatarul Roblox pentru panou (public, fără antete; 204 la eșec) |
 
 ## Verificări
 
 ```bash
-curl -s https://lostcube.pro/roblox/harness/healthz
+curl -s https://lostcube.pro/healthz
 # {"ok": true, "version": "1.0.0"}
 
-curl -s -o /dev/null -w "%{http_code}\n" https://lostcube.pro/roblox/harness/hub/status
+curl -s -o /dev/null -w "%{http_code}\n" https://lostcube.pro/hub/status
 # 401 — fără antete, corect ({"ok": false, "error": "...", "status": "unknown"})
 
 curl -s -H "X-Studio-Harness-Admin: $(sudo cat /var/lib/studio-harness/hub-admin-token)" \
-  https://lostcube.pro/roblox/harness/hub/status
+  https://lostcube.pro/hub/status
 # {"ok": true, "version": "1.0.0", "hub_id": "...", "enrollment": "approve", "admin": true, "device": null, ...}
 
 curl -s -H "X-Studio-Harness-Admin: $(sudo cat /var/lib/studio-harness/hub-admin-token)" \
-  https://lostcube.pro/roblox/harness/hub/admin/devices
+  https://lostcube.pro/hub/admin/devices
 # {"ok": true, "devices": [{"device_id": "...", "status": "pending", ...}]}
 ```
 
@@ -76,7 +76,26 @@ Rutele de dispozitiv folosesc antetul `X-Studio-Harness-Device` (tokenul de 64 h
 
 ## Canalul de actualizări servit de hub
 
-Hub-ul servește `https://lostcube.pro/roblox/harness/releases/manifest.json` și pachetele din `/var/lib/studio-harness/app/releases/`, fără antete. `install.sh` le copiază din `releases/` al pachetului, dacă există. Când `update-channel.json` are un `upstream_manifest_url` (GitHub sau Hugging Face) diferit de `manifest_url` (lostcube.pro), hub-ul se actualizează primul din upstream și oglindește pachetele noi în `releases/`, iar daemon-ii developerilor se actualizează de la hub.
+Hub-ul servește `https://lostcube.pro/releases/manifest.json` și pachetele din `/var/lib/studio-harness/app/releases/`, fără antete. `install.sh` le copiază din `releases/` al pachetului, dacă există. Când `update-channel.json` are un `upstream_manifest_url` (GitHub sau Hugging Face) diferit de `manifest_url` (lostcube.pro), hub-ul se actualizează primul din upstream și oglindește pachetele noi în `releases/`, iar daemon-ii developerilor se actualizează de la hub.
+
+## Actualizarea unui hub deja instalat
+
+Aceiași pași ca la instalare: `install.sh` este idempotent, nu atinge starea (`hub-state.json`, `hub-admin-token`, dispozitivele aprobate) și repornește serviciul.
+
+```bash
+cd /tmp
+BASE=https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases
+curl -fsSLO "$BASE/studio-harness-hub-1.0.0-ubuntu.zip"
+curl -fsSLO "$BASE/studio-harness-hub-1.0.0-ubuntu.zip.sha256"
+sha256sum -c studio-harness-hub-1.0.0-ubuntu.zip.sha256
+unzip -oq studio-harness-hub-1.0.0-ubuntu.zip
+sudo bash studio-harness-hub-1.0.0/deploy/install.sh
+curl -fsS https://<domeniul-vostru>/healthz     # trebuie să arate {"ok": true, "version": "1.0.0"}
+```
+
+**De ce contează versiunea:** 0.8 avea rutele `/team/*` și cerea un token de echipă; 1.0 are `/hub/*`, dispozitive aprobate și workspace-uri. Un daemon 1.0 care întâlnește un hub 0.8 la aceeași adresă primește 404, 405 sau 501, rămâne `offline` cu mesajul „Hub-ul rulează o versiune mai veche.” și lucrează mai departe cu claims locale. Invers, un daemon 0.8 lăsat pe un hub 1.0 rămâne solo.
+
+După prima pornire pe 1.0, hub-ul se actualizează singur din `upstream_manifest_url` și oglindește pachetele în `releases/`, deci actualizările următoare nu mai cer pași manuali.
 
 ## Cum intră developerii
 
@@ -98,10 +117,10 @@ Nu au nimic de configurat și nu primesc niciun token:
 
 **Înrolare deschisă** (aprobare automată, doar în rețele de încredere): din panou, fila Dispozitive, sau porniți serviciul cu `--open-enrollment` în `ExecStart` (forțează modul la fiecare pornire). Modul se salvează în `hub-state.json`.
 
-**Alt domeniu decât cel implicit**: daemon-ul se conectează implicit la `https://lostcube.pro/roblox/harness`. Pentru un hub propriu, fiecare developer pune pe PC-ul lui, în `%LOCALAPPDATA%\StudioHarness\config.json`:
+**Alt domeniu decât cel implicit**: daemon-ul se conectează implicit la `https://lostcube.pro`. Pentru un hub propriu, fiecare developer pune pe PC-ul lui, în `%LOCALAPPDATA%\StudioHarness\config.json`:
 
 ```json
-{"hub_url": "https://<domeniul-vostru>/roblox/harness"}
+{"hub_url": "https://<domeniul-vostru>"}
 ```
 
 sau setează variabila `STUDIO_HARNESS_HUB_URL`. Se acceptă `https://` către orice gazdă și `http://` doar către `127.0.0.1`/`localhost` (hub de test pe același PC); o valoare respinsă lasă daemon-ul în starea `disabled`, fără să trimită date altundeva.

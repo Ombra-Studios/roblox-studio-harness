@@ -40,8 +40,8 @@ import updater  # noqa: E402
 
 VERSION = "1.0.0"
 
-# Pe lostcube.pro hub-ul stă sub https://lostcube.pro/roblox/harness/. Proxy-ul (Caddy `handle_path`, nginx `proxy_pass .../`)
-# scoate prefixul, dar hub-ul îl acceptă și direct, ca aceleași rute să meargă și fără proxy sau cu un proxy care nu îl elimină.
+# Pe lostcube.pro hub-ul stă la rădăcina domeniului, deci proxy-ul trimite calea neatinsă. Prefixul rămâne acceptat pentru
+# instalările care îl pun sub o cale: aceleași rute merg și când proxy-ul nu îl scoate, și când nu există proxy deloc.
 BASE_PATH = "/roblox/harness"
 
 
@@ -1476,7 +1476,7 @@ class HubHandler(BaseHTTPRequestHandler):
                 self._panel(hub)
                 return
             if get and path == "/":
-                # Rădăcina (https://lostcube.pro/roblox/harness/ sau hub-ul direct) duce la panou. `Location` relativ, ca să
+                # Rădăcina (https://lostcube.pro/ sau hub-ul direct) duce la panou. `Location` relativ, ca să
                 # rămână corect și când proxy-ul a scos prefixul; doar `/roblox/harness` fără bară finală primește calea absolută.
                 self._redirect(BASE_PATH + "/panel" if url.path == BASE_PATH else "panel")
                 return

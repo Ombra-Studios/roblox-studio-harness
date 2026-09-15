@@ -921,7 +921,7 @@ class HubSetupTests(unittest.TestCase):
         return bridge
 
     def test_hub_url_comes_from_env_then_config_then_default(self):
-        self.assertEqual(studio_bridge.DEFAULT_HUB_URL, "https://lostcube.pro/roblox/harness")
+        self.assertEqual(studio_bridge.DEFAULT_HUB_URL, "https://lostcube.pro")
         bridge = self.bridge()
         self.assertEqual((bridge.hub.hub_url, bridge.hub_source, bridge.hub.disabled_error), (DEFAULT_HUB_URL, "default", None))
         self.assertEqual((bridge.status()["hub"]["status"], bridge.status()["hub"]["url"]), ("connecting", DEFAULT_HUB_URL))

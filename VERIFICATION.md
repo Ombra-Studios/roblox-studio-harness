@@ -180,8 +180,8 @@ Invoke-RestMethod http://127.0.0.1:34871/v1/status -Headers @{ "X-Studio-Harness
 | Identitate Roblox | `identity: {user_id: 4324991580, name: "ArchangelS0L", avatar: "rbxthumb://type=AvatarHeadShot&id=4324991580&w=48&h=48"}`, `developer: "ArchangelS0L"`, `machine: "OMBRA"` — venită din `POST /v1/identity`, nu din configurație |
 | Workspace detectat | `workspace: {key: "game:10766226591", game_id: 10766226591, place_id: 129160346456700, name: "Place2", creator_id: 554257950, creator_type: "Group"}` — `workspace_key` a ales forma `game:<id>` |
 | Harta proiectului | `project: {snapshot_id: "<GUID>", count: 20000, place_name: "Place2"}` — pluginul a trimis inventarul prin `/v1/project/chunks` până la plafonul `MAX_PROJECT_NODES` |
-| `hub` spre hub-ul public | `{url: "https://lostcube.pro/roblox/harness", status: "offline", hub_id: null, device_id: "87aea6745a4f3138", error: "Hub-ul a răspuns HTTP 405.", last_sync: null, enrollment: null}` — **așteptat**: hub-ul public nu rulează încă la acea adresă, iar daemon-ul rămâne în `offline` cu backoff, fără să blocheze lucrul |
-| `panel_url` | `https://lostcube.pro/roblox/harness/panel` (derivat din `hub_url`, fără token în URL) |
+| `hub` spre hub-ul public | `{url: "https://lostcube.pro", status: "offline", hub_id: null, device_id: "87aea6745a4f3138", error: "Hub-ul a răspuns HTTP 405.", last_sync: null, enrollment: null}` — **așteptat**: hub-ul public nu rulează încă la acea adresă, iar daemon-ul rămâne în `offline` cu backoff, fără să blocheze lucrul |
+| `panel_url` | `https://lostcube.pro/panel` (derivat din `hub_url`, fără token în URL) |
 | Proxy `/v1/hub/workspaces` cu hub `offline` | `503` — conform §4.7 (401/403/5xx ale hub-ului devin 503, ca pluginul să nu se deconecteze) |
 | `update` | `{current: "1.0.0", available: null, state: "idle", restart_required: false}` — canalul public nu servește încă un manifest mai nou |
 | Mesajele de pornire | doar căile fișierelor (`local-token`, `device-token`), `Mașină: … · dispozitiv <device_id>` și `Hub: <url> (sursa: …)` — **niciun token** |
@@ -233,7 +233,7 @@ un_specs.py` | SessionStore 60 · ProjectScanner 14 · Theme 28 · Loader 13 |
 
 Publicare reală: commit-ul inițial și pachetele 1.0.0 sunt pe `https://github.com/Ombra-Studios/roblox-studio-harness` (ramura `main`), iar manifestul upstream răspunde la `https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases/manifest.json` cu versiunea `1.0.0` și loader `1.1.0`.
 
-Instalare locală pe PC-ul de dezvoltare: pluginul a fost reconstruit și instalat în `%LOCALAPPDATA%\Roblox\Plugins` cu token-ul local injectat (`LocalTokenInjected: true`, hash verificat, copie de siguranță păstrată), iar daemon-ul a fost repornit pe portul 34871 și raportează versiunea `1.0.0` cu funcțiile `identity`, `workspaces` și `panel` active. Hub-ul public răspunde deocamdată `HTTP 405`, pentru că `lostcube.pro/roblox/harness` încă nu rulează hub-ul; daemon-ul stă corect în starea `offline` și reîncearcă.
+Instalare locală pe PC-ul de dezvoltare: pluginul a fost reconstruit și instalat în `%LOCALAPPDATA%\Roblox\Plugins` cu token-ul local injectat (`LocalTokenInjected: true`, hash verificat, copie de siguranță păstrată), iar daemon-ul a fost repornit pe portul 34871 și raportează versiunea `1.0.0` cu funcțiile `identity`, `workspaces` și `panel` active. La momentul acelei verificări hub-ul public nu era încă instalat, iar daemon-ul stătea corect în starea `offline`; adresa finală este în secțiunea 13.
 
 ## 10. Proba în Studio real (14 septembrie 2026)
 
@@ -279,4 +279,24 @@ Tot în această rundă a fost reparat un test fragil: `test_deploy.test_install
 **Aprobarea automată:** `auto_approve` în `config.json`, cu `ask` (implicit), `edits` și `all`; rută `POST /v1/settings`, câmp `settings` în `/v1/status`, buton în plugin care ciclează cele trei moduri. O operație trecută automat emite un eveniment `status` în sesiune, deci rămâne vizibilă. Verificat pe daemon-ul real: setarea pe `all` a fost scrisă în `config.json` și citită înapoi din `/v1/status`.
 
 Suita completă după aceste schimbări: **576 de teste** Python (5 noi pentru aprobare) și spec-urile Luau **61/14/28/13**.
+
+## 13. Adresa publică a hub-ului (15 septembrie 2026)
+
+Hub-ul a fost găzduit la **rădăcina domeniului**, nu sub prefixul pregătit anterior: panoul este la `https://lostcube.pro/panel`. Măsurat direct pe domeniu:
+
+| Adresă | Răspuns |
+| --- | --- |
+| `https://lostcube.pro/healthz` | `200 {"ok": true, "version": "0.8.0"}` |
+| `https://lostcube.pro/panel` | `200`, 86 KB (panoul 0.8, fără `hub/panel-data`) |
+| `https://lostcube.pro/team/status` | `401` (rutele vechi, cu token de echipă) |
+| `https://lostcube.pro/hub/status` | `301` de la nginx (ruta 1.0 nu există acolo) |
+| `https://lostcube.pro/releases/manifest.json` | `404` (canalul nu este încă servit) |
+
+Prin urmare adresa implicită din tot codul a fost mutată de la `https://lostcube.pro/roblox/harness` înapoi la `https://lostcube.pro` (56 de apariții în 18 fișiere: `local_state.DEFAULT_HUB_URL`, `publish_release.PUBLIC_CHANNEL`, `update-channel.json`, proxy-urile Caddy și nginx, `install.sh`, documentele și testele). `team_hub.BASE_PATH` rămâne: hub-ul acceptă în continuare și calea cu prefix, pentru instalările care îl pun sub o cale.
+
+Serverul rulează încă **0.8.0**, deci daemon-ii 1.0 nu se pot înregistra la el. Un hub 0.8 răspunde la `POST /hub/register` cu 405, nu cu 404, iar clientul trata doar 404 ca „hub vechi”; acum 404, 405 și 501 dau același mesaj. Verificat pe daemon-ul real după repornire: `hub.url = https://lostcube.pro`, `hub.status = offline`, `hub.error = "Hub-ul rulează o versiune mai veche."`.
+
+Procedura de actualizare a serverului la 1.0 este în `deploy/ubuntu/README.md`, secțiunea „Actualizarea unui hub deja instalat”.
+
+Suita completă după aceste schimbări: **576 de teste** Python, publicare de probă fără secrete.
 

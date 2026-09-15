@@ -4,11 +4,11 @@ Repo: `C:\Users\ellob\Desktop\New folder (6)\roblox-studio-harness`. Tot ce nu e
 
 ## 0. Ce este și ce se schimbă
 
-Studio Harness = plugin Roblox Studio (Luau, loader + aplicație cu hot swap) + daemon local Python (`scripts/studio_bridge.py`, `127.0.0.1:34871`) care rulează Claude Code / Codex din terminalul developerului + hub central Python (`scripts/team_hub.py`, găzduit la `https://lostcube.pro/roblox/harness/`) + panou web (`panel/index.html`). Echipa: 5–6 developeri care lucrează cu A.I. în Studio, pe mai multe jocuri.
+Studio Harness = plugin Roblox Studio (Luau, loader + aplicație cu hot swap) + daemon local Python (`scripts/studio_bridge.py`, `127.0.0.1:34871`) care rulează Claude Code / Codex din terminalul developerului + hub central Python (`scripts/team_hub.py`, găzduit la `https://lostcube.pro/`) + panou web (`panel/index.html`). Echipa: 5–6 developeri care lucrează cu A.I. în Studio, pe mai multe jocuri.
 
 Versiunea 0.8 cere „echipă”: `team.json` cu token de echipă per developer, „mod solo / mod echipă”, buton „Conectează/Deconectează daemon-ul”, „Scenă implicită”, listă de membri după nume tastat. Este prea complicat. Versiunea **1.0.0** schimbă:
 
-1. **Fără echipe, fără `team.json`, fără token de echipă.** Daemon-ul se conectează singur la hub-ul central (`DEFAULT_HUB_URL = "https://lostcube.pro/roblox/harness"`). Developerul nu configurează nimic.
+1. **Fără echipe, fără `team.json`, fără token de echipă.** Daemon-ul se conectează singur la hub-ul central (`DEFAULT_HUB_URL = "https://lostcube.pro"`). Developerul nu configurează nimic.
 2. **Identitatea = contul Roblox.** Pluginul citește contul de developer din Studio (`StudioService:GetUserId()`, numele prin `Players:GetNameFromUserIdAsync`, avatar `rbxthumb://type=AvatarHeadShot&id=<userId>&w=48&h=48`) și îl trimite daemon-ului; hub-ul și panoul ne identifică între noi după contul Roblox (nume + avatar).
 3. **Workspace = jocul.** Hub-ul detectează automat în ce jocuri este folosit pluginul (din `game.GameId` / `game.PlaceId` / nume / creator trimise de plugin) și grupează totul pe workspace: developeri prezenți, sesiuni, claims, jurnal, harta proiectului. În panou alegi workspace-ul dintr-o listă; în plugin workspace-ul curent este jocul deschis (cu posibilitatea de a privi și celelalte).
 4. **Acces automat, dar controlat.** Fiecare PC are un token de dispozitiv generat local; hub-ul îl ține în „așteptare” până îl aprobă adminul cu un click în panou (sau hub-ul rulează cu înrolare deschisă). Developerul nu vede niciun token; adminul are un singur cod de administrator, generat pe server.

@@ -17,7 +17,7 @@ Developerii lucrează pe mai multe jocuri, fiecare de pe PC-ul lui, cu contul lu
 
 - **Pluginul Studio** (`dist/StudioHarness.rbxmx`): loader 1.1.0 + aplicația 1.0.0, care se schimbă fără repornirea Studio-ului. Arată sesiunile (ale tale și ale colegilor din același joc), aprobările, zonele revendicate și jurnalul modificărilor. De acolo pornești și sesiuni scrise direct în Studio.
 - **Daemon-ul local** (`scripts/studio_bridge.py`, `127.0.0.1:34871`): pornit automat de serverul MCP la prima sesiune CLI. Este proxy filtrat către MCP-ul oficial al Roblox Studio, impune revendicările (claims), ține jurnalul și servește pluginul.
-- **Hub-ul central** (`scripts/team_hub.py`, implicit `https://lostcube.pro/roblox/harness`): adună dispozitivele aprobate, workspace-urile, sesiunile, claims-urile și jurnalul tuturor; servește panoul web și canalul de actualizări.
+- **Hub-ul central** (`scripts/team_hub.py`, implicit `https://lostcube.pro`): adună dispozitivele aprobate, workspace-urile, sesiunile, claims-urile și jurnalul tuturor; servește panoul web și canalul de actualizări.
 - **Panoul web** (`panel/index.html`, servit de hub la `/panel`): aceleași date în browser, cu filele Activitate, Proiect și Dispozitive.
 
 Nu configurezi nimic: instalezi pluginul, deschizi Studio și apari în hub. Singurul pas uman este aprobarea PC-ului tău de către admin, o singură dată. Nu există login în plugin, profile dedicate, chei API sau gateway de autentificare: CLI-ul rulează cu contul cu care ești deja autentificat în terminal.
@@ -150,10 +150,10 @@ Repo-ul este publicat și ca **Space Docker** pe Hugging Face: același cod rule
 
 ## Hub propriu
 
-Implicit nu ai nimic de făcut: daemon-ul se conectează la `https://lostcube.pro/roblox/harness`.
+Implicit nu ai nimic de făcut: daemon-ul se conectează la `https://lostcube.pro`.
 
 - **Pe acest PC** (teste, self-hosting): **`Start-Hub.cmd`** pornește `scripts/team_hub.py` pe portul 34880 și pasează mai departe argumentele hub-ului: `--show-admin-code` (afișează codul o dată la pornire; altfel se afișează doar calea `%LOCALAPPDATA%\StudioHarness\hub-admin-token`), `--approve-pending` (aprobă toate dispozitivele în așteptare și iese; iese cu 1 dacă hub-ul în execuție refuză codul), `--open-enrollment` (aprobare automată), `--listen`, `--port`, `--state-dir`, `--no-auto-update`. Hub-ul ascultă implicit **doar pe `127.0.0.1`**: `--listen 0.0.0.0` îl expune în rețea pe HTTP simplu și se folosește numai în spatele unui proxy HTTPS (la pornire hub-ul scrie un avertisment în acest caz; `Start-Hub.cmd` o spune în comentarii). Daemon-ul îl folosește cu `{"hub_url": "http://127.0.0.1:34880"}` în `%LOCALAPPDATA%\StudioHarness\config.json` sau cu variabila `STUDIO_HARNESS_HUB_URL`.
-- **Pe un server Ubuntu**: `sudo bash deploy/ubuntu/install.sh` (systemd, Caddy sau nginx, HTTPS, Docker) — pașii compleți în `deploy/ubuntu/README.md`. Codul de administrator ajunge în `/var/lib/studio-harness/hub-admin-token`. Developerii care folosesc alt domeniu pun `{"hub_url": "https://<domeniul-vostru>/roblox/harness"}` în `config.json`.
+- **Pe un server Ubuntu**: `sudo bash deploy/ubuntu/install.sh` (systemd, Caddy sau nginx, HTTPS, Docker) — pașii compleți în `deploy/ubuntu/README.md`. Codul de administrator ajunge în `/var/lib/studio-harness/hub-admin-token`. Developerii care folosesc alt domeniu pun `{"hub_url": "https://<domeniul-vostru>"}` în `config.json`.
 - Peste `http://` se acceptă doar `127.0.0.1` și `localhost`; din LAN sau din internet hub-ul se folosește exclusiv prin HTTPS, cu un reverse proxy în față. O adresă respinsă lasă daemon-ul în starea `disabled`, nu îl trimite tăcut către hub-ul public.
 
 ## Siguranță și limite
