@@ -20,8 +20,16 @@ Acest fișier este scris pentru un agent AI (Claude Code, Codex sau similar) car
 ## Pași
 
 ```bash
-# 1. Copiază pachetul pe server și dezarhivează-l (de exemplu în /root/studio-harness-hub)
-cd studio-harness-hub
+# 1. Adu pachetul pe server. Fie ți-a fost trimis direct, fie îl iei din release-ul public
+#    (https://github.com/Ombra-Studios/roblox-studio-harness/releases/latest):
+cd /tmp
+VERSIUNE=1.0.0
+REL="https://github.com/Ombra-Studios/roblox-studio-harness/releases/download/v$VERSIUNE"
+curl -fsSLO "$REL/studio-harness-hub-$VERSIUNE-ubuntu.zip"
+curl -fsSLO "$REL/studio-harness-hub-$VERSIUNE-ubuntu.zip.sha256"
+sha256sum -c "studio-harness-hub-$VERSIUNE-ubuntu.zip.sha256"   # oprește-te dacă nu scrie „OK”
+unzip -oq "studio-harness-hub-$VERSIUNE-ubuntu.zip"
+cd "studio-harness-hub-$VERSIUNE"
 sudo bash deploy/install.sh             # creează utilizatorul, /var/lib/studio-harness/app, serviciul
 sudo systemctl status studio-harness-hub --no-pager
 curl -s http://127.0.0.1:34880/healthz  # trebuie {"ok": true, "version": "1.0.0"}

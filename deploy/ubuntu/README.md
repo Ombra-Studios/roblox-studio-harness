@@ -82,20 +82,27 @@ Hub-ul servește `https://lostcube.pro/releases/manifest.json` și pachetele din
 
 Aceiași pași ca la instalare: `install.sh` este idempotent, nu atinge starea (`hub-state.json`, `hub-admin-token`, dispozitivele aprobate) și repornește serviciul.
 
+Pachetul se ia din release-ul de pe GitHub — [ultimul release](https://github.com/Ombra-Studios/roblox-studio-harness/releases/latest) are întotdeauna fișierul `studio-harness-hub-<versiune>-ubuntu.zip` cu suma lui de control alături:
+
 ```bash
 cd /tmp
-BASE=https://raw.githubusercontent.com/Ombra-Studios/roblox-studio-harness/main/releases
-curl -fsSLO "$BASE/studio-harness-hub-1.0.0-ubuntu.zip"
-curl -fsSLO "$BASE/studio-harness-hub-1.0.0-ubuntu.zip.sha256"
-sha256sum -c studio-harness-hub-1.0.0-ubuntu.zip.sha256
-unzip -oq studio-harness-hub-1.0.0-ubuntu.zip
-sudo bash studio-harness-hub-1.0.0/deploy/install.sh
+VERSIUNE=1.0.0
+REL="https://github.com/Ombra-Studios/roblox-studio-harness/releases/download/v$VERSIUNE"
+curl -fsSLO "$REL/studio-harness-hub-$VERSIUNE-ubuntu.zip"
+curl -fsSLO "$REL/studio-harness-hub-$VERSIUNE-ubuntu.zip.sha256"
+sha256sum -c "studio-harness-hub-$VERSIUNE-ubuntu.zip.sha256"   # trebuie să scrie „OK”
+unzip -oq "studio-harness-hub-$VERSIUNE-ubuntu.zip"
+sudo bash "studio-harness-hub-$VERSIUNE/deploy/install.sh"
 curl -fsS https://<domeniul-vostru>/healthz     # trebuie să arate {"ok": true, "version": "1.0.0"}
 ```
 
+Dacă `sha256sum -c` nu scrie „OK”, oprește-te: arhiva nu este cea publicată. Pentru altă versiune, schimbă o singură dată `VERSIUNE`; lista completă este la <https://github.com/Ombra-Studios/roblox-studio-harness/releases>.
+
+Prima instalare pe un server gol este exact aceeași secvență: `install.sh` creează utilizatorul de serviciu, unit-ul systemd și codul de administrator. Pune apoi HTTPS în față (secțiunea de mai sus) și verifică `https://<domeniul-vostru>/panel`.
+
 **De ce contează versiunea:** 0.8 avea rutele `/team/*` și cerea un token de echipă; 1.0 are `/hub/*`, dispozitive aprobate și workspace-uri. Un daemon 1.0 care întâlnește un hub 0.8 la aceeași adresă primește 404, 405 sau 501, rămâne `offline` cu mesajul „Hub-ul rulează o versiune mai veche.” și lucrează mai departe cu claims locale. Invers, un daemon 0.8 lăsat pe un hub 1.0 rămâne solo.
 
-După prima pornire pe 1.0, hub-ul se actualizează singur din `upstream_manifest_url` și oglindește pachetele în `releases/`, deci actualizările următoare nu mai cer pași manuali.
+După prima pornire pe 1.0, hub-ul se actualizează singur din `upstream_manifest_url` (canalul publicat pe GitHub) și oglindește pachetele în `releases/`, deci actualizările următoare nu mai cer pași manuali. Comanda de mai sus rămâne calea de rezervă: o folosești dacă serviciul nu pornește după o actualizare automată sau dacă vrei să sari direct la o versiune anume.
 
 ## Cum intră developerii
 

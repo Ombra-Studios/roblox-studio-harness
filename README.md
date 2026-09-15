@@ -30,7 +30,7 @@ Referințe: `STUDIO_HUB_CONTRACT.md` (rute, câmpuri, coduri), `design/DESIGN.md
 
 ### Cel mai simplu: un singur fișier
 
-**`dist\StudioHarnessSetup.exe`** face singur toate cele trei instalări de mai jos: pluginul Roblox Studio, pluginul Claude Code și configurația Codex. Este un executabil de 19 KB, fără nimic de instalat în prealabil, și îl poți trimite colegilor așa cum este: dacă nu găsește pachetul lângă el, îl descarcă singur din canalul public, îi verifică suma de control și îl despachetează. Pașii pe care nu îi poate face (Roblox Studio neinstalat, `claude` lipsă din `PATH`) sunt sărite, cu motivul scris.
+**`StudioHarnessSetup.exe`** ([descarcă din ultimul release](https://github.com/Ombra-Studios/roblox-studio-harness/releases/latest), sau `dist\StudioHarnessSetup.exe` din arbore) face singur toate cele trei instalări de mai jos: pluginul Roblox Studio, pluginul Claude Code și configurația Codex. Este un executabil de 19 KB, fără nimic de instalat în prealabil, și îl poți trimite colegilor așa cum este: dacă nu găsește pachetul lângă el, îl descarcă singur din canalul public, îi verifică suma de control și îl despachetează. Pașii pe care nu îi poate face (Roblox Studio neinstalat, `claude` lipsă din `PATH`) sunt sărite, cu motivul scris.
 
 ```powershell
 StudioHarnessSetup.exe            # instalează tot, apoi așteaptă Enter
