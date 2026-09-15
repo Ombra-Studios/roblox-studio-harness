@@ -788,6 +788,22 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request("/v1/board")[0], 200)
         self.assertTrue(self.request("/v1/status")[1]["plugin_connected"])
 
+    def test_the_project_name_comes_from_studio_not_from_game_name(self):
+        """`game.Name` este „Place1” pentru toate locurile unui univers: numele afișat vine din fereastra Studio."""
+        self.assertEqual(studio_bridge.studio_place_name("Ball (placeId: 129160346456700)"), "Ball")
+        self.assertEqual(studio_bridge.studio_place_name("Swim For ASMR (placeid:84880819048888)"), "Swim For ASMR")
+        # Fără sufix rămâne numele întreg; gol sau alt tip → None (workspace-ul păstrează atunci `place_name`).
+        self.assertEqual(studio_bridge.studio_place_name("Fără sufix"), "Fără sufix")
+        for empty in ("", "   ", None, 7, "(placeId: 5)"):
+            with self.subTest(empty=empty):
+                self.assertIsNone(studio_bridge.studio_place_name(empty))
+        self.bridge.native.studios = [{"id": "studio-ball", "name": "Ball (placeId: 1291603)"}]
+        body = self.request("/v1/identity", dict(IDENTITY, place_name="Place1", instance_id="fereastra"))[1]
+        self.assertEqual((body["studio_id"], body["workspace"]["name"]), ("studio-ball", "Ball"))
+        # Fără instanță potrivită rămâne numele raportat de plugin.
+        self.bridge.native.studios = []
+        self.assertEqual(self.request("/v1/identity", dict(IDENTITY, place_name="Place1", instance_id="alta"))[1]["workspace"]["name"], "Place1")
+
     def test_two_studio_windows_keep_their_own_project(self):
         """1.0: două ferestre Studio deschise nu se mai suprascriu — fiecare primește în /v1/status jocul ei."""
         kart = {"user_id": 777, "name": "ana", "place_id": 5550001, "game_id": 999002, "place_name": "Kart",
@@ -1285,11 +1301,22 @@ class HubLoopbackTests(unittest.TestCase):
             with self.subTest(wanted=wanted), self.assertRaisesRegex(BridgeError, message):
                 bridge.agent_call(job, "studio_use", {"studio": wanted})
         self.assertEqual(job.studio_id, "studio-ball")
-        # Suprascrierea manuală din plugin rămâne pentru sesiunile care nu au ales.
+        # Suprascrierea manuală din plugin („Studio țintă”) rămâne pentru sesiunile care nu au ales, dar nu mai este tăcută:
+        # sesiunea află o singură dată în ce proiect lucrează și cum îl schimbă.
         other = bridge.create_terminal_session({"provider": "claude", "cli_session_id": "alta"})
         bridge.set_default_studio({"studio_id": "studio-kart"})
         bridge.agent_call(other, "inspect_instance", {"path": "Workspace"})
         self.assertEqual(native.calls[-1][2], "studio-kart")
+        announcements = [event for event in other.events if event.get("tool") == "studio_use"]
+        self.assertEqual(len(announcements), 1)
+        self.assertIn("Kart", announcements[0]["text"])
+        self.assertIn("studio_use", announcements[0]["text"])
+        bridge.agent_call(other, "inspect_instance", {"path": "Workspace"})
+        self.assertEqual(len([event for event in other.events if event.get("tool") == "studio_use"]), 1, "anunțul nu se repetă")
+        # Dacă „Studio țintă” se schimbă sub sesiune, aceasta află din nou.
+        bridge.set_default_studio({"studio_id": "studio-ball"})
+        bridge.agent_call(other, "inspect_instance", {"path": "Workspace"})
+        self.assertEqual(len([event for event in other.events if event.get("tool") == "studio_use"]), 2)
 
 
 class UpdateTests(unittest.TestCase):

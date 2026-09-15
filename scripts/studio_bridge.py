@@ -14,6 +14,7 @@ import hmac
 import json
 import os
 import platform
+import re
 import secrets
 import subprocess
 import shutil
@@ -125,6 +126,14 @@ class BridgeError(RuntimeError):
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
         self.status = status
+
+
+def studio_place_name(name: object) -> str | None:
+    """„Ball (placeId: 129160346456700)” → „Ball”; fără sufixul de placeId întoarce numele curățat, sau None dacă e gol."""
+    if not isinstance(name, str):
+        return None
+    cleaned = re.sub(r"\s*\(placeid:\s*\d+\s*\)\s*$", "", name.strip(), flags=re.IGNORECASE).strip()
+    return cleaned[:MAX_PLACE_NAME] or None
 
 
 def text_result(text: str, is_error: bool = False) -> dict[str, Any]:
@@ -305,6 +314,8 @@ class Job:
     pending: dict[str, Any] | None = None
     condition: threading.Condition = field(default_factory=threading.Condition)
     cancelled: threading.Event = field(default_factory=threading.Event)
+    # Ultima fereastră Studio anunțată în flux: o sesiune care nu a ales singură trebuie să vadă unde lucrează.
+    announced_studio: str | None = None
     started: float = field(default_factory=time.time)
     last_activity: float = field(default_factory=time.time)
     closed_at: float | None = None
@@ -738,21 +749,25 @@ class Bridge:
         if current == "approved":
             self.claims.reconcile(jobs)
 
-    def studio_for_place(self, place_id: int) -> str | None:
-        """Instanța MCP care are deschis acest `place_id`, după numele raportat de proxy („Ball (placeId: 123)”).
+    def studio_for_place(self, place_id: int) -> tuple[str | None, str | None]:
+        """(id-ul instanței MCP, numele locului) pentru fereastra care are deschis acest `place_id`.
 
-        Este singura legătură sigură între o fereastră Studio și id-ul ei din MCP: pluginul nu îl poate afla singur.
-        Cu două ferestre pe același loc potrivirea este ambiguă și întoarcem None, ca sesiunea să aleagă explicit."""
+        Proxy-ul Studio raportează „Ball (placeId: 123)”: este singura legătură sigură între o fereastră și id-ul ei din
+        MCP (pluginul nu îl poate afla singur) și singurul loc de unde aflăm numele pe care îl vede omul în Studio —
+        `game.Name` este adesea „Place1” pentru toate locurile unui univers, deci nu deosebește proiectele.
+        Cu două ferestre pe același loc potrivirea este ambiguă și întoarcem (None, None), ca sesiunea să aleagă explicit."""
         if not place_id:
-            return None
+            return None, None
         needle = "placeid: " + str(place_id)
         try:
             studios, _ = self.studios(timeout=0.5)
         except Exception:
             # Confort, nu cale critică: dacă proxy-ul MCP nu răspunde, fereastra rămâne fără id și sesiunea alege manual.
-            return None
-        matching = [studio["id"] for studio in studios if needle in str(studio.get("name", "")).lower()]
-        return matching[0] if len(matching) == 1 else None
+            return None, None
+        matching = [studio for studio in studios if needle in str(studio.get("name", "")).lower()]
+        if len(matching) != 1:
+            return None, None
+        return matching[0]["id"], studio_place_name(matching[0].get("name"))
 
     def _forget_idle_instances_locked(self, now: float) -> None:
         for key in [key for key, row in self.instances.items() if now - row["seen"] > INSTANCE_IDLE]:
@@ -799,7 +814,11 @@ class Bridge:
             raise BridgeError("instance_id trebuie să fie un text scurt, nevid.")
         key = instance_id.strip() if isinstance(instance_id, str) and instance_id.strip() else LEGACY_INSTANCE
         # Id-ul instanței MCP se caută în afara lacătului: interoghează proxy-ul Studio.
-        studio_id = self.studio_for_place(workspace["place_id"]) if workspace else None
+        studio_id, studio_name = self.studio_for_place(workspace["place_id"]) if workspace else (None, None)
+        # Numele din Studio îl bate pe `game.Name`: acesta din urmă este „Place1” pentru toate locurile unui univers,
+        # deci două proiecte diferite ar apărea cu același nume în plugin, în panou și la colegi.
+        if workspace and studio_name:
+            workspace["name"] = studio_name
         now = time.time()
         with self.lock:
             self._forget_idle_instances_locked(now)
@@ -1054,6 +1073,13 @@ class Bridge:
         if not identifiers:
             raise BridgeError(NO_STUDIO, 409)
         raise BridgeError(MANY_STUDIOS + " Deschise: " + self._studio_menu(studios), 409)
+
+    def _studio_label(self, studio_id: str) -> str:
+        studios, _ = self.studios(timeout=0.5)
+        for studio in studios:
+            if studio["id"] == studio_id:
+                return str(studio.get("name") or studio_id)
+        return studio_id
 
     def _studio_menu(self, studios: list[dict[str, Any]]) -> str:
         return ", ".join(str(studio.get("name") or studio["id"]) for studio in studios) or "niciuna"
@@ -1706,7 +1732,15 @@ class Bridge:
             self._require_active(job)
             if name not in {tool["name"] for tool in self.native.list_tools()}:
                 raise BridgeError("Instrument necunoscut.")
-            studio_id = job.studio_id or self._terminal_studio()
+            studio_id = job.studio_id
+            if not studio_id:
+                studio_id = self._terminal_studio()
+                # Sesiunea nu a ales: moștenește „Studio țintă” din plugin sau singura fereastră deschisă. Spune-o o dată,
+                # ca agentul și omul să știe în ce proiect se lucrează și cum se schimbă.
+                if studio_id != job.announced_studio:
+                    job.announced_studio = studio_id
+                    job.emit("status", "Sesiunea lucrează în " + self._studio_label(studio_id)
+                             + ". Schimbă proiectul cu studio_use.", tool="studio_use")
             try:
                 arguments = validate_target(name, copy.deepcopy(arguments), studio_id, True, True)
             except ValueError as error:

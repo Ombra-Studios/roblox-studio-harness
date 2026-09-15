@@ -318,3 +318,18 @@ Ghicitul după nume a fost **eliminat**: cu mai multe ferestre deschise, o sesiu
 
 Verificat: `test_studio_bridge.test_two_studio_windows_keep_their_own_project` (două ferestre raportează, fiecare primește propriul joc din `/v1/status`, lista le conține pe amândouă, `instance_id` invalid dă 400) și `test_a_session_picks_its_studio_window_instead_of_the_daemon_guessing` (alegere după nume, `placeId` și id; conflict și potrivire inexistentă refuzate; claims eliberate la schimbarea proiectului; suprascrierea manuală rămâne pentru sesiunile care nu au ales). Suita completă: **577 de teste** Python, spec-urile Luau 61/14/28/13, toate cele 13 fișiere Luau compilate.
 
+### Proba live cu două proiecte deschise
+
+Rulată pe PC-ul de dezvoltare, cu „Ball” și „Swim For ASMR” deschise simultan în două ferestre Studio:
+
+| Pas | Rezultat |
+| --- | --- |
+| Ferestrele văzute de daemon | 2, fiecare legată de instanța ei MCP (`a1d0933d` ↔ Ball, `910034f2` ↔ Swim For ASMR) |
+| Ce vede fiecare fereastră în `/v1/status?instance=` | jocul ei: `game:10766226591`, respectiv `game:10764184150` |
+| Sesiune nouă de terminal, primul instrument | refuzată cu 409 și lista ambelor ferestre |
+| `studio_use({})` | ambele proiecte, cu nume, joc și developer |
+| `studio_use({studio:"Swim For ASMR"})` apoi citire | reușită, `workspace: game:10764184150` |
+| Trecere pe „Ball” apoi citire | reușită, `workspace: game:10766226591` |
+
+Două lucruri găsite în timpul probei și corectate: ambele ferestre raportau `place_name: "Place1"` (așa se numește `game.Name` pentru locurile unui univers), deci proiectele erau imposibil de deosebit — numele se ia acum din fereastra Studio; iar „Studio țintă”, o setare globală a daemonului apăsată cândva din plugin, lega tăcut sesiunile din terminal de un proiect — acum sesiunea anunță în flux în ce proiect lucrează și cum îl schimbă.
+
