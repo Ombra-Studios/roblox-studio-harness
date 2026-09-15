@@ -300,3 +300,21 @@ Procedura de actualizare a serverului la 1.0 este în `deploy/ubuntu/README.md`,
 
 Suita completă după aceste schimbări: **576 de teste** Python, publicare de probă fără secrete.
 
+## 14. Mai multe proiecte Studio deschise (15 septembrie 2026)
+
+**Simptomul raportat:** un coleg cu mai multe proiecte deschise era legat mereu de „Ball”, în loc să lucreze în proiectul pe care îl avea în față.
+
+**Cauza,** găsită în cod: daemon-ul ținea o singură identitate și un singur workspace pentru tot PC-ul (`self.identity`, `self.workspace`), suprascrise de ultima fereastră care raporta, iar `_terminal_studio()` alegea instanța Studio **după numele jocului din acel workspace**. Cu două ferestre deschise, ghicitul îl trimitea pe agent în proiectul greșit, iar sesiunile pornite din plugin moșteneau `default_studio_id`, care era tot global.
+
+**Corecția** are trei părți:
+
+| Ce | Cum |
+| --- | --- |
+| Fiecare fereastră este separată | Pluginul generează la pornire un `instance_id`; daemon-ul ține câte o intrare per fereastră și uită ferestrele tăcute peste 90 s |
+| Fiecare fereastră vede jocul ei | `GET /v1/status?instance=` și `GET /v1/board?instance=` răspund despre fereastra care întreabă; `POST /v1/chat` cu `instance_id` leagă jobul de fereastra care l-a cerut |
+| Sesiunea alege proiectul | Toolul `studio_use`: fără argument listează ferestrele (joc, developer), cu argument (nume, `placeId` sau id) leagă sesiunea și eliberează claims-urile proiectului anterior |
+
+Ghicitul după nume a fost **eliminat**: cu mai multe ferestre deschise, o sesiune din terminal care nu a ales primește 409 cu lista lor și mesajul care îi spune să folosească `studio_use`. Legătura fereastră ↔ instanță MCP se face exact, după `placeId` (proxy-ul Studio raportează „Ball (placeId: 129160346456700)”).
+
+Verificat: `test_studio_bridge.test_two_studio_windows_keep_their_own_project` (două ferestre raportează, fiecare primește propriul joc din `/v1/status`, lista le conține pe amândouă, `instance_id` invalid dă 400) și `test_a_session_picks_its_studio_window_instead_of_the_daemon_guessing` (alegere după nume, `placeId` și id; conflict și potrivire inexistentă refuzate; claims eliberate la schimbarea proiectului; suprascrierea manuală rămâne pentru sesiunile care nu au ales). Suita completă: **577 de teste** Python, spec-urile Luau 61/14/28/13, toate cele 13 fișiere Luau compilate.
+

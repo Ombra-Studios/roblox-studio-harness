@@ -80,6 +80,20 @@ Dacă folosești doar Studio, fără terminal deschis, pornește daemon-ul cu **
 
 Niciun token nu apare în interfață, în jurnale, în pachete sau în documente; daemon-ul afișează la pornire doar căile fișierelor.
 
+## Mai multe proiecte deschise în același timp
+
+Poți ține deschise oricâte ferestre Studio. Fiecare plugin are identitatea lui, deci fiecare fereastră își vede propriul joc, propriile sesiuni și propriile revendicări; nu se mai suprascriu între ele.
+
+Sesiunile pornite din plugin merg automat în fereastra din care ai apăsat „Sesiune nouă”. Sesiunile din terminal aleg singure când ai un singur proiect deschis; cu mai multe, agentul primește lista și te întreabă în care lucrezi:
+
+```
+studio_use({})                        → lista ferestrelor, cu jocul și developerul fiecăreia
+studio_use({studio: "Ball"})          → sesiunea se leagă de acel proiect
+studio_use({studio: "129160346456"})  → sau după placeId, sau după id-ul instanței
+```
+
+Trecerea la alt proiect eliberează revendicările din cel anterior, ca să nu rămână zone blocate pentru colegi.
+
 ## Workspace-uri
 
 **Workspace = jocul deschis în Studio.** Cheia este `game:<gameId>`, iar pentru un loc fără joc publicat `place:<placeId>`; un fișier nepublicat intră în `local`. Cheia se calculează mereu din id-uri (hub-ul nu are încredere într-o cheie trimisă de client) și vine din identitatea raportată de plugin, deci se schimbă singură când deschizi alt joc.

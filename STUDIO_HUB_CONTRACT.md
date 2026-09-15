@@ -808,3 +808,13 @@ Daemon-ul ține modul de aprobare în `config.json` (cheia `auto_approve`), deci
 
 Studio descarcă pluginul la fiecare intrare în Play (`plugin.Unloading`) și îl reîncarcă după. Un `DockWidgetPluginGui` distrus nu mai poate fi recreat cu același id cât ține sesiunea Studio, deci aplicația **nu** distruge niciodată panoul hub-ului și nici panourile sesiunilor la oprire: le golește conținutul și le lasă instanței următoare, care la pornire curăță ce a rămas în ele. Panoul unei sesiuni se distruge doar când fereastra dispare din store (utilizatorul a închis-o), pentru că atunci id-ul nu se mai repetă.
 
+## Mai multe ferestre Studio pe același PC (1.0)
+
+Un singur daemon deservește toate ferestrele Studio deschise. Ca ele să nu se suprascrie, fiecare plugin se prezintă cu un `instance_id` propriu, generat la pornirea lui (`HttpService:GenerateGUID`).
+
+- `POST /v1/identity` acceptă `instance_id` (text nevid, maximum 64 de caractere; altfel 400). Daemon-ul ține o intrare per fereastră — identitate, workspace, id-ul instanței MCP și momentul ultimei raportări — și uită ferestrele tăcute mai mult de 90 s (pluginul raportează la 30 s). Fără `instance_id` raportarea intră pe cheia `legacy`, deci un plugin mai vechi funcționează ca înainte. Răspunsul adaugă `instance_id` și `studio_id`.
+- Legătura dintre o fereastră și instanța ei MCP se face după `placeId`: proxy-ul Studio raportează numele `„<joc> (placeId: <id>)”`, iar daemon-ul caută acolo `place_id`-ul raportat de plugin. Cu două ferestre pe același loc potrivirea este ambiguă și rămâne nerezolvată, ca sesiunea să aleagă explicit.
+- `GET /v1/status?instance=<id>` și `GET /v1/board?instance=<id>` răspund despre fereastra care întreabă. Fără parametru rămân datele ultimei raportări. Ambele întorc și `instances`: lista ferestrelor deschise, cea mai recentă prima.
+- `POST /v1/chat` acceptă `instance_id`: jobul primește instanța Studio și workspace-ul ferestrei care l-a cerut, nu ale ultimei care a raportat.
+- **Sesiunile din terminal nu mai ghicesc.** `_terminal_studio()` folosește, în ordine: instanța aleasă de sesiune (`studio_use`), suprascrierea manuală din plugin (`/v1/default-studio`), singura fereastră deschisă. Cu mai multe ferestre întoarce 409 cu lista lor. Euristica veche „instanța al cărei nume coincide cu jocul raportat” a fost eliminată: lega sesiunea de proiectul altcuiva.
+- **`studio_use`** (tool de agent, alături de `hub_*`): fără argument întoarce `{ok, chosen, studios: [{studio_id, name, workspace, place_name, developer, chosen}]}`; cu `studio` (id, `placeId` sau nume, potrivire exactă apoi parțială) leagă sesiunea de acea fereastră, îi mută `workspace`-ul și eliberează claims-urile proiectului anterior (`released`). Zero potriviri sau mai multe → 409 cu lista.

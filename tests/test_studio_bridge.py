@@ -788,12 +788,34 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request("/v1/board")[0], 200)
         self.assertTrue(self.request("/v1/status")[1]["plugin_connected"])
 
+    def test_two_studio_windows_keep_their_own_project(self):
+        """1.0: două ferestre Studio deschise nu se mai suprascriu — fiecare primește în /v1/status jocul ei."""
+        kart = {"user_id": 777, "name": "ana", "place_id": 5550001, "game_id": 999002, "place_name": "Kart",
+                "creator_id": 42, "creator_type": "User", "instance_id": "fereastra-kart"}
+        self.assertEqual(self.request("/v1/identity", dict(IDENTITY, instance_id="fereastra-ball"))[1]["instance_id"], "fereastra-ball")
+        self.assertEqual(self.request("/v1/identity", kart)[1]["instance_id"], "fereastra-kart")
+        # Fiecare fereastră întreabă cu id-ul ei și primește propriul joc, indiferent care a raportat ultima.
+        ball_view = self.request("/v1/status?instance=fereastra-ball")[1]
+        kart_view = self.request("/v1/status?instance=fereastra-kart")[1]
+        self.assertEqual((ball_view["workspace"], ball_view["identity"]["name"]), (BALL, "ellob"))
+        self.assertEqual((kart_view["workspace"]["key"], kart_view["identity"]["name"]), ("game:999002", "ana"))
+        # Ambele ferestre apar în listă, cea mai recentă prima; fără id rămâne ultima raportare (daemon vechi, plugin vechi).
+        self.assertEqual([row["instance_id"] for row in ball_view["instances"]], ["fereastra-kart", "fereastra-ball"])
+        self.assertEqual(self.request("/v1/status")[1]["workspace"]["key"], "game:999002")
+        # Tabla urmează aceeași regulă.
+        self.assertEqual(self.request("/v1/board?instance=fereastra-ball")[1]["workspace"], BALL)
+        # Un instance_id gol sau prea lung este refuzat, ca să nu intre gunoi în lista ferestrelor.
+        for bad in ("", "   ", "x" * 65, 7, []):
+            with self.subTest(bad=bad):
+                self.assertEqual(self.request("/v1/identity", dict(IDENTITY, instance_id=bad))[0], 400)
+
     def test_identity_route_marks_the_plugin_connected_and_fills_status(self):
         self.assertFalse(self.request("/v1/status")[1]["plugin_connected"])
         status, body, _ = self.request("/v1/identity", IDENTITY)
         self.assertEqual(status, 200)
         self.assertEqual(body, {"ok": True, "workspace": BALL,
-                                "identity": {"user_id": 12345, "name": "ellob", "avatar": "rbxthumb://type=AvatarHeadShot&id=12345&w=48&h=48"}})
+                                "identity": {"user_id": 12345, "name": "ellob", "avatar": "rbxthumb://type=AvatarHeadShot&id=12345&w=48&h=48"},
+                                "instance_id": "legacy", "studio_id": None})
         summary = self.request("/v1/status")[1]
         self.assertTrue(summary["plugin_connected"])
         self.assertEqual((summary["identity"]["name"], summary["workspace"], summary["developer"]), ("ellob", BALL, "ellob"))
@@ -993,7 +1015,9 @@ class HubSetupTests(unittest.TestCase):
             self.assertEqual(error.exception.status, 400)
         self.assertEqual((bridge.identity, bridge.workspace, bridge.hub.identities), (None, None, []))
         result = bridge.set_identity(IDENTITY)
-        self.assertEqual(result, {"ok": True, "workspace": BALL, "identity": {"user_id": 12345, "name": "ellob", "avatar": "rbxthumb://type=AvatarHeadShot&id=12345&w=48&h=48"}})
+        # Răspunsul spune și cu ce fereastră Studio a fost asociată raportarea (fără `instance_id` intră pe cheia „legacy”).
+        self.assertEqual(result, {"ok": True, "workspace": BALL, "identity": {"user_id": 12345, "name": "ellob", "avatar": "rbxthumb://type=AvatarHeadShot&id=12345&w=48&h=48"},
+                                  "instance_id": "legacy", "studio_id": None})
         self.assertEqual(bridge.developer, "ellob")
         self.assertEqual(bridge.hub.identities, [({"user_id": 12345, "name": "ellob"}, BALL)])
         # Joburile fără workspace o primesc acum; cele noi o primesc la creare; sesiunile poartă cheia în tablă și în sync.
@@ -1123,7 +1147,7 @@ class HubLoopbackTests(unittest.TestCase):
         self.assertTrue(wait_until(lambda: any(row["job_id"] == "job-ana" for row in bridge.board()["sessions"])))
         self.assertTrue(wait_until(lambda: any(claim["job_id"] == "job-ana" for claim in bridge.board()["claims"])))
         board = bridge.board()
-        self.assertEqual(set(board), {"ok", "bridge_id", "studios", "connected", "default_studio_id", "developer", "identity", "workspace", "hub",
+        self.assertEqual(set(board), {"ok", "bridge_id", "studios", "connected", "default_studio_id", "developer", "identity", "workspace", "hub", "instances",
                                       "members", "workspaces", "sessions", "claims", "journal"})
         rows = {row["job_id"]: row for row in board["sessions"]}
         own = rows[job.id]
@@ -1225,24 +1249,47 @@ class HubLoopbackTests(unittest.TestCase):
         self.assertIn("stare: revoked", json.loads(self.text(self.bridge.agent_call(job, "hub_claim", {"paths": ["Lighting"]})))["notice"])
         self.assertTrue(self.bridge.claims.local.held_by(job.id))
 
-    def test_terminal_studio_follows_the_open_place_name(self):
-        native = FakeNative([{"id": "studio-ball", "name": "Ball"}, {"id": "studio-kart", "name": "Kart"}])
+    def test_a_session_picks_its_studio_window_instead_of_the_daemon_guessing(self):
+        """1.0: cu mai multe ferestre deschise nu se mai ghicește după numele jocului — sesiunea alege cu `studio_use`."""
+        native = FakeNative([{"id": "studio-ball", "name": "Ball (placeId: 111)"}, {"id": "studio-kart", "name": "Kart (placeId: 222)"}])
         bridge = self.start(native=native)
         job = bridge.create_terminal_session({"provider": "claude"})
         with self.assertRaisesRegex(BridgeError, "Mai multe instanțe Studio") as error:
             bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
         self.assertEqual(error.exception.status, 409)
-        bridge.set_identity(IDENTITY)
-        bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
-        self.assertEqual(native.calls[-1][2], "studio-ball")
-        # Suprascrierea manuală câștigă; două instanțe cu același nume nu se aleg automat.
-        bridge.set_default_studio({"studio_id": "studio-kart"})
-        bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
-        self.assertEqual(native.calls[-1][2], "studio-kart")
-        bridge.default_studio_id = None
-        native.studios.append({"id": "studio-ball-2", "name": "Ball"})
+        self.assertIn("Ball", str(error.exception))
+        # Identitatea raportată de o fereastră nu mai trage sesiunile din terminal după ea.
+        bridge.set_identity(dict(IDENTITY, place_id=111, place_name="Ball", instance_id="fereastra-ball"))
         with self.assertRaisesRegex(BridgeError, "Mai multe instanțe Studio"):
             bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
+        # Lista este vizibilă înainte de alegere, cu jocul fiecărei ferestre.
+        listing = json.loads(self.text(bridge.agent_call(job, "studio_use", {})))
+        self.assertIsNone(listing["chosen"])
+        self.assertEqual({row["studio_id"]: row["place_name"] for row in listing["studios"]},
+                         {"studio-ball": "Ball", "studio-kart": None})
+        # Alegerea după nume, după placeId și după id duce toate la aceeași fereastră.
+        for wanted in ("Kart", "222", "studio-kart"):
+            with self.subTest(wanted=wanted):
+                chosen = json.loads(self.text(bridge.agent_call(job, "studio_use", {"studio": wanted})))
+                self.assertEqual(chosen["chosen"], "studio-kart")
+                bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
+                self.assertEqual(native.calls[-1][2], "studio-kart")
+        # Trecerea la altă fereastră eliberează claims-urile proiectului anterior.
+        bridge.claims.claim(job.id, job.developer, ["Workspace.Map"])
+        moved = json.loads(self.text(bridge.agent_call(job, "studio_use", {"studio": "Ball"})))
+        self.assertEqual((moved["chosen"], moved["released"]), ("studio-ball", ["Workspace.Map"]))
+        self.assertEqual(bridge.claims.snapshot(), [])
+        self.assertEqual(moved["workspace"], "game:987654")
+        # Un nume care nu există sau care se potrivește cu două ferestre nu schimbă nimic.
+        for wanted, message in (("Minecraft", "Nicio fereastră"), ("placeId", "mai multe ferestre")):
+            with self.subTest(wanted=wanted), self.assertRaisesRegex(BridgeError, message):
+                bridge.agent_call(job, "studio_use", {"studio": wanted})
+        self.assertEqual(job.studio_id, "studio-ball")
+        # Suprascrierea manuală din plugin rămâne pentru sesiunile care nu au ales.
+        other = bridge.create_terminal_session({"provider": "claude", "cli_session_id": "alta"})
+        bridge.set_default_studio({"studio_id": "studio-kart"})
+        bridge.agent_call(other, "inspect_instance", {"path": "Workspace"})
+        self.assertEqual(native.calls[-1][2], "studio-kart")
 
 
 class UpdateTests(unittest.TestCase):

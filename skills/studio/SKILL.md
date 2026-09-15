@@ -6,7 +6,7 @@ argument-hint: "<ce trebuie inspectat, creat sau testat>"
 
 # Roblox Studio Harness
 
-Acționează în Roblox Studio, nu doar oferi cod de copiat. Răspunde în română. Folosește serverul MCP `studio_hub` al acestui plugin: el pornește singur daemon-ul local, care se conectează automat la hub-ul central și alege singur instanța Studio după jocul deschis. Sesiunea ta apare live în Studio și în panoul web, în **workspace-ul** jocului deschis (workspace = jocul, după `game.GameId`/`game.PlaceId`; developerii sunt identificați după contul Roblox). Nu ai nimic de configurat: singurul pas uman este aprobarea dispozitivului de către admin, o dată per PC.
+Acționează în Roblox Studio, nu doar oferi cod de copiat. Răspunde în română. Folosește serverul MCP `studio_hub` al acestui plugin: el pornește singur daemon-ul local, care se conectează automat la hub-ul central. Cu o singură fereastră Studio deschisă lucrezi direct în ea; cu mai multe proiecte deschise alegi tu fereastra, cu `studio_use`. Sesiunea ta apare live în Studio și în panoul web, în **workspace-ul** jocului deschis (workspace = jocul, după `game.GameId`/`game.PlaceId`; developerii sunt identificați după contul Roblox). Nu ai nimic de configurat: singurul pas uman este aprobarea dispozitivului de către admin, o dată per PC.
 
 ## Începutul fiecărei sarcini
 
@@ -17,7 +17,11 @@ Acționează în Roblox Studio, nu doar oferi cod de copiat. Răspunde în româ
    - `members` (prezenți în workspace), `sessions` (ale tale și ale colegilor din workspace), `claims` (ale workspace-ului), `journal` (ultimele 20 de modificări) și `project` (numele locului, numărul de instanțe, grupele hărții).
    Nu intra peste zona altcuiva.
 3. Apelează `hub_project({})`. Primești harta workspace-ului grupată pe funcționalitate — `graphics` (Lighting, Terrain, efecte, lumini), `assets` (părți, modele, meshuri, animații), `audio`, `ui` (StarterGui), `scripts_server`, `scripts_client`, `scripts_shared`, `networking` (Remote/Bindable), `data` (*Value, Configuration, foldere), `physics`, `gameplay`, `settings`, `other` — fiecare cu număr, clase și primele 50 de căi; răspunsul spune și `workspace`-ul hărții. `hub_project({group:"scripts_server"})` dă grupa completă (până la 500 de căi). Harta vine din pluginul Studio (scanare la conectare și la schimbări) sau, pentru un workspace raportat de alt PC, din hub; dacă răspunsul spune că nu există încă o hartă, cere developerului să deschidă jocul în Studio cu pluginul Studio Harness conectat la daemon.
-4. Apelează `get_studio_state({})` și `search_game_tree({path:"Workspace",max_depth:2,head_limit:100})`. Daemon-ul alege instanța Studio al cărei nume coincide cu jocul din workspace; nu există `studio_id` în argumente. Dacă primești „Nicio instanță Studio conectată; activează MCP-ul în Studio.” sau „Mai multe instanțe Studio deschise; alege Studio-ul țintă în Avansat.”, cere developerului să rezolve în Studio (secțiunea Avansat a pluginului).
+4. Apelează `get_studio_state({})` și `search_game_tree({path:"Workspace",max_depth:2,head_limit:100})`. Instanța Studio nu se dă niciodată prin argumentele instrumentelor: o alege sesiunea, o singură dată, cu `studio_use`.
+   - Cu **o singură** fereastră Studio deschisă nu ai nimic de făcut.
+   - Cu **mai multe** proiecte deschise primești „Mai multe instanțe Studio deschise…”. Atunci apelează `studio_use({})`, arată-i developerului lista (fiecare rând are `name`, `place_name` și `developer`), întreabă-l în care proiect lucrezi și fixează alegerea cu `studio_use({studio:"<nume, placeId sau id>"})`. Nu ghici și nu alege singur când sunt mai multe.
+   - Trecerea la altă fereastră eliberează claims-urile din proiectul anterior, deci revendică din nou după ce schimbi.
+   - „Nicio instanță Studio conectată; activează MCP-ul în Studio.” înseamnă că developerul trebuie să deschidă Studio și să activeze MCP-ul.
 5. Citește înainte să editezi. Nu reinstala Studio și nu șterge cache-uri drept prim pas de depanare.
 
 ## Claims: revendică înainte să modifici

@@ -92,7 +92,13 @@ HUB_NOTICE = "Hub-ul nu este disponibil (stare: {state}): claims-urile sunt loca
 NO_WORKSPACE_NOTICE = "Jobul nu are încă un workspace (pluginul Studio nu a trimis identitatea): claim-ul este local."
 HUB_DISABLED_PANEL = "Hub-ul este dezactivat pe acest PC."
 NO_STUDIO = "Nicio instanță Studio conectată; activează MCP-ul în Studio."
-MANY_STUDIOS = "Mai multe instanțe Studio deschise; alege Studio-ul țintă în Avansat."
+# Fiecare plugin (o fereastră Studio, un proiect) se prezintă cu un `instance_id` propriu, generat la pornirea lui.
+# Raportează la 30 s, deci o instanță tăcută mai mult de INSTANCE_IDLE a fost închisă și iese din listă.
+MAX_INSTANCE_ID = 64
+INSTANCE_IDLE = 90.0
+LEGACY_INSTANCE = "legacy"
+MANY_STUDIOS = ("Mai multe instanțe Studio deschise. Alege una cu toolul studio_use (sau, din plugin, în Avansat) "
+                "și abia apoi modifică scena.")
 NO_PROJECT = "Nu există încă o hartă a proiectului: pluginul Studio o trimite la conectare și la fiecare schimbare."
 TEAM_JSON_NOTICE = "team.json nu mai este folosit din 1.0: fișierul este ignorat (identitatea vine de la contul Roblox, accesul din tokenul de dispozitiv)."
 UNSET = object()
@@ -109,6 +115,8 @@ HUB_TOOLS = [
     {"name": "hub_project", "description": "Harta proiectului din workspace-ul curent, grupată pe funcționalitate (grafică, asseturi, audio, interfață, scripturi server/client/partajate, rețea, date, fizică, gameplay, setări). Fără argument: sumar cu primele 50 de căi per grupă; cu group: grupa completă (până la 500 de intrări). Citește-o înainte de hub_claim și revendică subarborele grupei pe care o modifici, nu servicii întregi.",
      "inputSchema": {"type": "object", "properties": {"group": {"type": "string", "enum": list(project_map.GROUP_KEYS)}}},
      "annotations": {"readOnlyHint": True}},
+    {"name": "studio_use", "description": "Alege fereastra Roblox Studio (proiectul) în care lucrează această sesiune. Fără argument: lista ferestrelor deschise, cu jocul și developerul fiecăreia. Cu argument (id, nume sau placeId): sesiunea se leagă de acea fereastră, iar toate instrumentele merg acolo; claims-urile din proiectul anterior se eliberează. Cheamă-l întâi când sunt deschise mai multe proiecte.",
+     "inputSchema": {"type": "object", "properties": {"studio": {"type": "string"}}}},
 ]
 HUB_TOOL_NAMES = frozenset(tool["name"] for tool in HUB_TOOLS)
 
@@ -526,8 +534,11 @@ class Bridge:
         self.machine = (os.environ.get("COMPUTERNAME") or platform.node() or "pc")[:MAX_MACHINE]
         # Numele afișat până sosește identitatea Roblox: cel dat explicit (teste), altfel mașina.
         self.fallback_developer = (developer or "").strip()[:MAX_IDENTITY_NAME] or self.machine
+        # Ultima instanță care a raportat: rămâne valoarea „curentă” pentru apelanții care nu spun cu care vorbesc.
         self.identity: dict[str, Any] | None = None
         self.workspace: dict[str, Any] | None = None
+        # 1.0: câte o intrare per fereastră Studio deschisă — {instance_id: {identity, workspace, studio_id, seen}}.
+        self.instances: dict[str, dict[str, Any]] = {}
         self.version = VERSION
         self.plugin_root = Path(__file__).resolve().parents[1]
         self.update: dict[str, Any] = {"current": VERSION, "available": None, "state": "idle", "message": "",
@@ -727,6 +738,44 @@ class Bridge:
         if current == "approved":
             self.claims.reconcile(jobs)
 
+    def studio_for_place(self, place_id: int) -> str | None:
+        """Instanța MCP care are deschis acest `place_id`, după numele raportat de proxy („Ball (placeId: 123)”).
+
+        Este singura legătură sigură între o fereastră Studio și id-ul ei din MCP: pluginul nu îl poate afla singur.
+        Cu două ferestre pe același loc potrivirea este ambiguă și întoarcem None, ca sesiunea să aleagă explicit."""
+        if not place_id:
+            return None
+        needle = "placeid: " + str(place_id)
+        try:
+            studios, _ = self.studios(timeout=0.5)
+        except Exception:
+            # Confort, nu cale critică: dacă proxy-ul MCP nu răspunde, fereastra rămâne fără id și sesiunea alege manual.
+            return None
+        matching = [studio["id"] for studio in studios if needle in str(studio.get("name", "")).lower()]
+        return matching[0] if len(matching) == 1 else None
+
+    def _forget_idle_instances_locked(self, now: float) -> None:
+        for key in [key for key, row in self.instances.items() if now - row["seen"] > INSTANCE_IDLE]:
+            del self.instances[key]
+
+    def instance_rows(self) -> list[dict[str, Any]]:
+        """Ferestrele Studio conectate acum, cea mai recentă prima: ce arată pluginul și ce listează `studio_use`."""
+        now = time.time()
+        with self.lock:
+            self._forget_idle_instances_locked(now)
+            rows = [{"instance_id": key, "identity": copy.deepcopy(row["identity"]), "workspace": copy.deepcopy(row["workspace"]),
+                     "studio_id": row["studio_id"], "seen": row["seen"]} for key, row in self.instances.items()]
+        rows.sort(key=lambda row: row["seen"], reverse=True)
+        return rows
+
+    def instance_state(self, instance_id: str | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """(identitate, workspace) ale ferestrei care întreabă; fără `instance_id` (sau necunoscut) rămân cele ale ultimei raportări."""
+        with self.lock:
+            row = self.instances.get(instance_id) if instance_id else None
+            if row is None:
+                return copy.deepcopy(self.identity), copy.deepcopy(self.workspace)
+            return copy.deepcopy(row["identity"]), copy.deepcopy(row["workspace"])
+
     def set_identity(self, body: dict[str, Any]) -> dict[str, Any]:
         """`POST /v1/identity` (contract §4.4): contul Roblox și jocul deschis; joburile fără workspace primesc cheia curentă."""
         user_id = _roblox_id(body.get("user_id"), "user_id")
@@ -744,14 +793,24 @@ class Bridge:
             identity = {"user_id": user_id, "name": name or "user_" + str(user_id), "avatar": AVATAR_URL.format(user_id=user_id)}
         else:
             identity = {"user_id": 0, "name": UNKNOWN_IDENTITY_NAME, "avatar": None}
+        instance_id = body.get("instance_id")
+        if instance_id is not None and (not isinstance(instance_id, str) or not instance_id.strip()
+                                        or len(instance_id) > MAX_INSTANCE_ID):
+            raise BridgeError("instance_id trebuie să fie un text scurt, nevid.")
+        key = instance_id.strip() if isinstance(instance_id, str) and instance_id.strip() else LEGACY_INSTANCE
+        # Id-ul instanței MCP se caută în afara lacătului: interoghează proxy-ul Studio.
+        studio_id = self.studio_for_place(workspace["place_id"]) if workspace else None
+        now = time.time()
         with self.lock:
+            self._forget_idle_instances_locked(now)
+            self.instances[key] = {"identity": identity, "workspace": workspace, "studio_id": studio_id, "seen": now}
             self.identity, self.workspace = identity, workspace
             for job in self.jobs.values():
                 if job.workspace is None:
                     job.workspace = workspace["key"]
         # Clientul trezește sync-ul doar dacă s-a schimbat ceva (cont sau cheie).
         self.hub.set_identity(self.identity_payload()["roblox"], workspace)
-        return {"ok": True, "workspace": copy.deepcopy(workspace), "identity": dict(identity)}
+        return {"ok": True, "workspace": copy.deepcopy(workspace), "identity": dict(identity), "instance_id": key, "studio_id": studio_id}
 
     def panel_open(self) -> dict[str, Any]:
         """`POST /v1/panel/open` (contract §4.5): browserul implicit la `<hub>/panel#device=<token>`; răspunsul nu conține tokenul."""
@@ -824,19 +883,23 @@ class Bridge:
     def plugin_connected(self) -> bool:
         return time.time() - self.last_ui_poll < PLUGIN_TIMEOUT
 
-    def status(self) -> dict[str, Any]:
+    def status(self, instance_id: str | None = None) -> dict[str, Any]:
+        """`GET /v1/status`. Cu `instance_id` răspunde despre fereastra Studio care întreabă, nu despre ultima care a raportat:
+        două ferestre deschise trebuie să vadă fiecare jocul ei."""
         provider_status = self.providers.status()
         hub = self.hub_status()
         approved = hub.get("status") == "approved"
+        identity, workspace = self.instance_state(instance_id)
+        instances = self.instance_rows()
         with self.lock:
-            identity, workspace = copy.deepcopy(self.identity), copy.deepcopy(self.workspace)
             counters = {"active_job_id": self.active_job_id, "queued_count": sum(job.state == "queued" for job in self.jobs.values()),
                         "default_studio_id": self.default_studio_id, "plugin_connected": self.plugin_connected()}
         return {"ok": True, "version": VERSION, "bridge_id": self.bridge_id, "features": dict(FEATURES), "providers": provider_status,
                 **counters, "developer": self.developer, "machine": self.machine, "identity": identity, "workspace": workspace,
                 "hub": hub, "panel_url": self.panel_url(), "members": self.hub.member_rows() if approved else [],
                 "workspaces": self.workspace_summary(), "update": self.update_status(), "project": self.project_summary(),
-                "plugin_bundle": self.plugin_bundle_summary(), "settings": {"auto_approve": self.auto_approve}}
+                "plugin_bundle": self.plugin_bundle_summary(), "settings": {"auto_approve": self.auto_approve},
+                "instances": instances, "instance_id": instance_id}
 
     # ----- harta proiectului -----
 
@@ -975,24 +1038,77 @@ class Bridge:
             self.default_studio_id = studio_id
 
     def _terminal_studio(self) -> str:
-        """Studio-ul țintă al sesiunilor din terminal (contract §4.9): suprascrierea manuală, altfel instanța cu numele jocului deschis,
-        altfel singura instanță conectată."""
+        """Studio-ul unei sesiuni din terminal care nu a ales încă una (contract §4.9): suprascrierea manuală din plugin,
+        altfel singura fereastră deschisă.
+
+        Cu mai multe ferestre nu mai ghicim după numele jocului: ghicitul lega sesiunea de proiectul altcuiva. Sesiunea
+        alege explicit cu `studio_use`."""
         studios, _ = self.studios(timeout=2)
         identifiers = [studio["id"] for studio in studios]
         with self.lock:
             default = self.default_studio_id
-            place_name = self.workspace["name"] if self.workspace else ""
         if default in identifiers:
             return default
-        if place_name:
-            matching = [studio["id"] for studio in studios if studio.get("name") == place_name]
-            if len(matching) == 1:
-                return matching[0]
         if len(identifiers) == 1:
             return identifiers[0]
         if not identifiers:
             raise BridgeError(NO_STUDIO, 409)
-        raise BridgeError(MANY_STUDIOS, 409)
+        raise BridgeError(MANY_STUDIOS + " Deschise: " + self._studio_menu(studios), 409)
+
+    def _studio_menu(self, studios: list[dict[str, Any]]) -> str:
+        return ", ".join(str(studio.get("name") or studio["id"]) for studio in studios) or "niciuna"
+
+    def studio_choices(self, job: Job | None = None) -> list[dict[str, Any]]:
+        """Ferestrele Studio deschise, cu workspace-ul raportat de pluginul din fiecare (când îl știm) și cea aleasă marcată."""
+        studios, _ = self.studios(timeout=2)
+        by_studio = {row["studio_id"]: row for row in self.instance_rows() if row["studio_id"]}
+        chosen = job.studio_id if job else None
+        rows = []
+        for studio in studios:
+            instance = by_studio.get(studio["id"])
+            workspace = instance["workspace"] if instance else None
+            rows.append({"studio_id": studio["id"], "name": studio.get("name"),
+                         "workspace": workspace["key"] if workspace else None,
+                         "place_name": workspace["name"] if workspace else None,
+                         "developer": (instance["identity"] or {}).get("name") if instance else None,
+                         "chosen": studio["id"] == chosen})
+        return rows
+
+    def use_studio(self, job: Job, wanted: Any) -> dict[str, Any]:
+        """Leagă sesiunea din terminal de o fereastră Studio anume; fără argument doar listează ce este deschis.
+
+        Potrivirea merge după id-ul instanței, după `placeId` sau după nume. Claims-urile rămase din proiectul anterior se
+        eliberează: ele aparțin altui workspace și l-ar ține blocat pentru colegi."""
+        choices = self.studio_choices(job)
+        if wanted is None or (isinstance(wanted, str) and not wanted.strip()):
+            return {"ok": True, "chosen": job.studio_id, "studios": choices}
+        if not isinstance(wanted, str) or len(wanted) > 256:
+            raise BridgeError("Argumentul studio trebuie să fie id-ul, numele sau placeId-ul ferestrei Studio.")
+        needle = wanted.strip().lower()
+        matches = [row for row in choices if row["studio_id"].lower() == needle]
+        if not matches and needle.isdigit():
+            matches = [row for row in choices if "placeid: " + needle in str(row["name"] or "").lower()]
+        if not matches:
+            matches = [row for row in choices if needle == str(row["name"] or "").lower()
+                       or needle == str(row["place_name"] or "").lower()]
+        if not matches:
+            matches = [row for row in choices if needle in str(row["name"] or "").lower()]
+        if not matches:
+            raise BridgeError("Nicio fereastră Studio nu se potrivește cu „" + wanted + "”. Deschise: "
+                              + (self._studio_menu([{"name": row["name"], "id": row["studio_id"]} for row in choices]) or "niciuna"), 409)
+        if len(matches) > 1:
+            raise BridgeError("„" + wanted + "” se potrivește cu mai multe ferestre Studio: "
+                              + ", ".join(str(row["name"]) for row in matches) + ". Alege după id.", 409)
+        picked = matches[0]
+        released = self._release_claims(job, "Claims-urile au fost eliberate: sesiunea a trecut la altă fereastră Studio.")
+        instance = next((row for row in self.instance_rows() if row["studio_id"] == picked["studio_id"]), None)
+        with job.condition:
+            job.studio_id = picked["studio_id"]
+            if instance and instance["workspace"]:
+                job.workspace = instance["workspace"]["key"]
+        job.emit("status", "Sesiunea lucrează în " + str(picked["name"] or picked["studio_id"]) + ".", tool="studio_use")
+        return {"ok": True, "chosen": picked["studio_id"], "name": picked["name"], "workspace": job.workspace,
+                "released": released, "studios": self.studio_choices(job)}
 
     def _session_rows(self, hub: bool = False) -> list[dict[str, Any]]:
         """Sesiunile vizibile în tablă; `hub=True` adaugă joburile încheiate de curând de orice fel, ca hub-ul să afle starea
@@ -1069,19 +1185,20 @@ class Bridge:
                 self._finish(job, "cancelled", "Terminalul s-a închis fără să anunțe daemon-ul; sesiunea a fost eliberată.")
         return gone
 
-    def board(self) -> dict[str, Any]:
+    def board(self, instance_id: str | None = None) -> dict[str, Any]:
         self.reap_terminals()
         studios, _ = self.studios(timeout=0.5)
         hub = self.hub_status()
+        identity, workspace = self.instance_state(instance_id)
         with self.lock:
             default = self.default_studio_id
-            identity, workspace = copy.deepcopy(self.identity), copy.deepcopy(self.workspace)
             own = set(self.jobs)
         sessions, members, journal = self._board_parts(hub, BOARD_JOURNAL, workspace["key"] if workspace else None)
         claims = [dict(row, mine=row.get("job_id") in own) for row in self.claims.snapshot()]
         return {"ok": True, "bridge_id": self.bridge_id, "studios": studios, "connected": bool(studios),
                 "default_studio_id": default, "developer": self.developer, "identity": identity, "workspace": workspace, "hub": hub,
-                "members": members, "workspaces": self.workspace_summary(), "sessions": sessions, "claims": claims, "journal": journal}
+                "members": members, "workspaces": self.workspace_summary(), "sessions": sessions, "claims": claims, "journal": journal,
+                "instances": self.instance_rows()}
 
     def _record(self, job: Job, tool: str, paths: list[str], summary: str) -> None:
         entry = {"time": time.time(), "job_id": job.id, "developer": job.developer, "provider": job.provider,
@@ -1128,10 +1245,13 @@ class Bridge:
             raise BridgeError("Ruta este rezervată sesiunilor din terminal.", 409)
         return job
 
-    def _release_claims(self, job: Job, text: str) -> None:
+    def _release_claims(self, job: Job, text: str) -> list[str]:
+        """Eliberează claims-urile jobului și întoarce căile eliberate (goale dacă nu avea niciunul)."""
         released = self.claims.release(job.id)
+        paths = [display(claim.path) for claim in released]
         if released:
-            job.emit("claim", text, action="released", paths=[display(claim.path) for claim in released])
+            job.emit("claim", text, action="released", paths=paths)
+        return paths
 
     def _finish(self, job: Job, state: str, text: str) -> None:
         self._release_claims(job, "Claims-urile au fost eliberate la încheiere.")
@@ -1167,6 +1287,15 @@ class Bridge:
             raise BridgeError("Payloadul cererii nu este JSON valid.") from None
         provider, prompt, studio_id = body.get("provider"), body.get("prompt"), body.get("studio_id")
         context, session_id = body.get("context", {}), body.get("session_id")
+        # Fereastra Studio care a apăsat „Sesiune nouă”: de la ea vin instanța țintă și workspace-ul, nu de la ultima
+        # fereastră care a raportat. Fără ea rămâne comportamentul vechi (o singură fereastră deschisă).
+        instance_id = body.get("instance_id") if isinstance(body.get("instance_id"), str) else None
+        instance_identity, instance_workspace = self.instance_state(instance_id)
+        if instance_id:
+            with self.lock:
+                row = self.instances.get(instance_id)
+            if row and row.get("studio_id") and not (isinstance(studio_id, str) and studio_id):
+                studio_id = row["studio_id"]
         request_id = body.get("client_request_id")
         if request_id is not None and (not isinstance(request_id, str) or not request_id or len(request_id) > 128):
             raise BridgeError("client_request_id trebuie să fie un text nevid de maximum 128 de caractere.")
@@ -1214,7 +1343,7 @@ class Bridge:
                 self.sessions[session_id] = {"provider": provider, "studio_id": studio_id, "native_id": None}
             job = Job(uuid.uuid4().hex, provider, studio_id, session_id, prompt, copy.deepcopy(context),
                       kind="studio", developer=self.developer, name="Sesiune Studio", state="queued",
-                      workspace=self.workspace["key"] if self.workspace else None)
+                      workspace=instance_workspace["key"] if instance_workspace else None)
             self.jobs[job.id] = job
             if request_id is not None:
                 self.request_receipts[request_id] = {"fingerprint": fingerprint, "job_id": job.id, "session_id": session_id}
@@ -1441,6 +1570,8 @@ class Bridge:
         return None if hub.get("status") == "approved" else HUB_NOTICE.format(state=hub.get("status"))
 
     def _hub_call(self, job: Job, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if name == "studio_use":
+            return text_result(json.dumps(self.use_studio(job, arguments.get("studio")), ensure_ascii=False, indent=1))
         if name == "hub_board":
             hub = self.hub_status()
             sessions, members, journal = self._board_parts(hub, 20, job.workspace)
@@ -1722,13 +1853,13 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 raise BridgeError("Codul local de asociere este invalid.", 401)
             # Doar rutele folosite exclusiv de plugin marchează pluginul ca fiind conectat.
             if self.command == "GET" and path.path == "/v1/status":
-                result = bridge.status()
+                result = bridge.status(parse_qs(path.query).get("instance", [None])[0])
             elif self.command == "GET" and path.path == "/v1/studios":
                 studios, _ = bridge.studios(timeout=2)
                 result = {"ok": True, "studios": studios, "connected": bool(studios)}
             elif self.command == "GET" and path.path == "/v1/board":
                 bridge.touch_ui()
-                result = bridge.board()
+                result = bridge.board(parse_qs(path.query).get("instance", [None])[0])
             elif self.command == "POST" and path.path == "/v1/default-studio":
                 bridge.touch_ui()
                 bridge.set_default_studio(self._body())

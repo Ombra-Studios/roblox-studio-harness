@@ -47,12 +47,17 @@ end
 -- Corpul POST /v1/identity (contract §4.4): contul și jocul deschis; avatarul se derivă în daemon din user_id.
 -- Locul și limitele câmpurilor vin din `Scanner` (helperi puri, testați în ProjectScanner.spec), ca antetul chunk-urilor și
 -- identitatea să raporteze exact aceleași valori.
-local function identityPayload(identity)
-	return Scanner.identityPayload(Scanner.place(), identity.userId, identity.name)
+local function identityPayload(identity, instanceId)
+	local payload = Scanner.identityPayload(Scanner.place(), identity.userId, identity.name)
+	payload.instance_id = instanceId
+	return payload
 end
 
 function Controller.new(pluginObject, store, snapshot)
-	local self = setmetatable({ plugin = pluginObject, store = store, alive = true, generation = 0,
+	-- Fiecare fereastră Studio (deci fiecare proiect deschis) are propriul id: daemon-ul ține sesiunile, jocul și
+	-- claims-urile separat pe fereastră, în loc să le amestece pe toate pe ultima care a raportat.
+	local instanceId = HttpService:GenerateGUID(false)
+	local self = setmetatable({ plugin = pluginObject, store = store, alive = true, generation = 0, instanceId = instanceId,
 		token = "", tokenOrigin = nil, tokenRejected = false, manualStop = false, retryDelay = RETRY_MIN, reconnect = nil,
 		worker = nil, cancelWorker = nil, accountWorker = nil, queue = {}, urgent = {},
 		nextPoll = 0, nextBoard = 0, nextStatus = 0, nextIdentity = 0, nextView = 0, failures = 0, remoteBusy = false, identity = nil, resolving = false, lastHub = nil, viewFailure = nil,
@@ -285,7 +290,7 @@ end
 
 function Controller:loop(generation)
 	if not self:valid(generation) then return end
-	local data, message, code = self:request("GET", "/v1/status", nil, self.token)
+	local data, message, code = self:request("GET", "/v1/status?instance=" .. HttpService:UrlEncode(self.instanceId), nil, self.token)
 	if not self:valid(generation) then return end
 	if not data then self:disconnect(message, code); return end
 	self.store.connecting = false
@@ -331,7 +336,7 @@ function Controller:loop(generation)
 			end
 			self.nextPoll = os.clock() + POLL_INTERVAL
 		elseif self.store.compatible and now >= self.nextBoard then
-			local result, errorMessage, resultCode = self:request("GET", "/v1/board", nil, self.token)
+			local result, errorMessage, resultCode = self:request("GET", "/v1/board?instance=" .. HttpService:UrlEncode(self.instanceId), nil, self.token)
 			if not self:valid(generation) then return end
 			self.nextBoard = os.clock() + BOARD_INTERVAL
 			if result then
@@ -349,7 +354,7 @@ function Controller:loop(generation)
 				self:status(OLD_DAEMON, true)
 			else self:pollFailure(errorMessage, resultCode) end
 		elseif now >= self.nextStatus then
-			local result, errorMessage, resultCode = self:request("GET", "/v1/status", nil, self.token)
+			local result, errorMessage, resultCode = self:request("GET", "/v1/status?instance=" .. HttpService:UrlEncode(self.instanceId), nil, self.token)
 			if not self:valid(generation) then return end
 			self.nextStatus = os.clock() + STATUS_INTERVAL
 			if result then self.failures = 0; self:applyStatus(result)
@@ -369,7 +374,7 @@ function Controller:sendIdentity(generation)
 	local identity = self:account()
 	if not self:valid(generation) then return end
 	self:publishIdentity()
-	local response, message, code = self:request("POST", "/v1/identity", identityPayload(identity), self.token)
+	local response, message, code = self:request("POST", "/v1/identity", identityPayload(identity, self.instanceId), self.token)
 	if not self:valid(generation) then return end
 	if response then
 		self.failures = 0
@@ -541,7 +546,10 @@ function Controller:sendRequest(window, request)
 	table.insert(self.queue, { bridgeId = request.bridgeId, run = function(generation)
 		local current = self.store.windows[windowId]
 		if not current or current.request ~= request then return end
-		local response, message, code = self:request("POST", "/v1/chat", request.payload, self.token)
+		-- Jobul aparține ferestrei care l-a cerut: daemon-ul îi dă Studio-ul și workspace-ul acestei ferestre, nu ale alteia.
+		local payload = table.clone(request.payload)
+		payload.instance_id = self.instanceId
+		local response, message, code = self:request("POST", "/v1/chat", payload, self.token)
 		if not self:valid(generation) then return end
 		if response and self.store:acceptRequest(windowId, requestId, response) then
 			self.nextPoll = 0

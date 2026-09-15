@@ -294,18 +294,19 @@ class SessionTests(TerminalBase):
         self.assertEqual(self.native.calls[-1][2], "studio-1")
         self.assertEqual(self.native.calls[-1][1]["studio_id"], "studio-1")
         self.native.studios.append({"id": "studio-2", "name": "A doua"})
-        with self.assertRaisesRegex(BridgeError, "Mai multe instanțe Studio deschise; alege Studio-ul țintă în Avansat.") as error:
+        with self.assertRaisesRegex(BridgeError, "Mai multe instanțe Studio deschise") as error:
             self.bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
         self.assertEqual(error.exception.status, 409)
-        # 1.0: instanța al cărei nume coincide cu jocul deschis (place_name din identitate) este aleasă automat.
+        # 1.0: identitatea raportată de o fereastră nu mai alege instanța pentru sesiunile din terminal (ghicitul după nume
+        # lega sesiunea de proiectul altcuiva). Alegerea se face explicit, cu `studio_use`.
         self.bridge.set_identity({**IDENTITY, "place_name": "A doua"})
-        self.bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
-        self.assertEqual(self.native.calls[-1][2], "studio-2")
-        self.bridge.set_identity({**IDENTITY, "place_name": "Alt joc"})
         with self.assertRaisesRegex(BridgeError, "Mai multe instanțe"):
             self.bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
-        # Suprascrierea manuală („Avansat”) câștigă în fața numelui.
-        self.bridge.set_identity({**IDENTITY, "place_name": "A doua"})
+        self.bridge.agent_call(job, "studio_use", {"studio": "A doua"})
+        self.bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
+        self.assertEqual(self.native.calls[-1][2], "studio-2")
+        # Suprascrierea manuală („Avansat”) se aplică sesiunilor care nu au ales singure.
+        job.studio_id = None
         self.bridge.set_default_studio({"studio_id": "studio-1"})
         self.bridge.agent_call(job, "inspect_instance", {"path": "Workspace"})
         self.assertEqual(self.native.calls[-1][2], "studio-1")
@@ -622,7 +623,7 @@ class TerminalHttpTests(TerminalBase):
         status, body = self.request("/v1/board")
         self.assertEqual(status, 200)
         # 1.0: tabla are identitate, workspace, hub, membri și workspace-uri în loc de `team`; fără hub sunt goale.
-        self.assertEqual(set(body), {"ok", "bridge_id", "studios", "connected", "default_studio_id", "developer", "identity", "workspace", "hub",
+        self.assertEqual(set(body), {"ok", "bridge_id", "studios", "connected", "default_studio_id", "developer", "identity", "workspace", "hub", "instances",
                                      "members", "workspaces", "sessions", "claims", "journal"})
         self.assertEqual((body["members"], body["workspaces"], body["hub"]["status"]), ([], [], "disabled"))
         self.assertNotIn("team", body)
